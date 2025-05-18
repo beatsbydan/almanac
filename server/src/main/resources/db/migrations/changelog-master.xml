@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+>
+    <include file="classpath:db/migrations/shedlock_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/college_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/department_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/timetable_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/otp_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/classroom_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/course_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/level_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/course_code_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/course_participant_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/course_participant_department_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/user_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/user_course_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/schedule_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/schedule_combination_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/schedule_classroom_schema.xml" relativeToChangelogFile="false"/>
+</databaseChangeLog>

@@ -1,0 +1,12 @@
+package com.project.server.enums;
+
+public enum Status {
+    PENDING_REPORT_GENERATION,
+    GENERATION_IN_PROGRESS,
+    DONE_WITH_GENERATION,
+    FAILED_TO_GENERATE_REPORT,
+    ENABLED,
+    PAUSED,
+    ACTIVATED,
+    DEACTIVATED
+}
