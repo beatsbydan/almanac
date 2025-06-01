@@ -12,6 +12,21 @@ export const DaysOfTheWeek: string[] = [
     "Fridays",
 ]
 
+export const ClassSizes: string[] = [
+    "< 100", 
+    "< 200", 
+    "< 300", 
+    "< 400", 
+    "< 500", 
+    "< 600", 
+    "< 700", 
+    "< 800",
+    "< 900", 
+    "< 1000", 
+    "< 1500", 
+    "1500"
+]
+
 export const TimePeriods: string[] = [
     "8:00am", 
     "9:00am", 

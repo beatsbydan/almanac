@@ -19,7 +19,10 @@ const VerifyOtp:React.FC = () => {
     const [processing, setProcessing] = useState<boolean>(false);
 
     useEffect(() => {
-        if(otp?.length === 4) setDisabled(false)
+        if(otp?.length === 4) {
+            setDisabled(false)
+            handleSubmit()
+        }
         else setDisabled(true);
     },[otp])
 

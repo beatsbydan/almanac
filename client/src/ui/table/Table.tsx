@@ -12,6 +12,7 @@ const Table:React.FC<TableType> = ({
     loading,
     headers, 
     canDelete,
+    canView,
     delay,
     canEdit,
     listStyle,
@@ -63,6 +64,7 @@ const Table:React.FC<TableType> = ({
                                         displayKeys={displayKeys}
                                         canEdit={canEdit}
                                         canDelete={canDelete}
+                                        canView={canView}
                                         deleteApiRoute={deleteApiRoute}
                                         selectEntity={selectEntity}
                                         refetchMethod={refetchMethod}

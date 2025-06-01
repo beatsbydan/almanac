@@ -40,7 +40,7 @@ public class AuthFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
         String token;
-        String staffId;
+        String userId;
 
         if(authHeader == null || !authHeader.startsWith("Bearer ")){
             filterChain.doFilter(request, response);
@@ -55,7 +55,7 @@ public class AuthFilter extends OncePerRequestFilter {
         }
 
         try{
-            staffId = authMgtService.extractUsername(token);
+            userId = authMgtService.extractUsername(token);
         }
         catch(ExpiredJwtException e){
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -64,8 +64,8 @@ public class AuthFilter extends OncePerRequestFilter {
             response.getWriter().flush();
             return;
         }
-        if(staffId != null && SecurityContextHolder.getContext().getAuthentication() == null){
-            UserDetails user = userDetailsService.loadUserByUsername(staffId);
+        if(userId != null && SecurityContextHolder.getContext().getAuthentication() == null){
+            UserDetails user = userDetailsService.loadUserByUsername(userId);
 
             if(authMgtService.userHasValidToken(user, token)){
                 List<GrantedAuthority> authorities = authMgtService.getAuthorities(token);

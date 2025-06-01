@@ -29,9 +29,7 @@ const Schedules:React.FC = () => {
   
   const [filterParams, setFilterParams] = useState<GenericObjectType>({
     userId: user?.id,
-    day: null,
-    startTime: null,
-    classroom: null,
+    day: null
   })
   const [inputValues, setInputValues] = useState<GenericObjectType | undefined>(undefined)
   const [suggestion, setSuggestion] = useState<GenericObjectType | undefined>(undefined)
@@ -100,6 +98,7 @@ const Schedules:React.FC = () => {
 
   const useSuggestion = useCallback((e: GenericObjectType) => {
     setSuggestion({...e})
+    setFilterOpen(false)
     setFormOpen(true)
   }, [])
 

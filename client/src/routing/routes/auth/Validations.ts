@@ -65,7 +65,7 @@ export const ValidateRegistrationForm = (data: GenericObjectType, isStudent: boo
     const studentFields = {...rest, level, department}
     const staffFields = {...rest, firstName, lastName, phone, title}
 
-    const isValid = Object.values(isStudent? studentFields : staffFields).every(input => !isEmpty(input)) && emailRegex.test(userEmail) && password?.length > 8 && password === confirmPassword
+    const isValid = Object.values(isStudent? studentFields : staffFields).every(input => !isEmpty(input)) && emailRegex.test(userEmail) && password?.length >= 8 && password === confirmPassword
 
     errors.none = isValid
 

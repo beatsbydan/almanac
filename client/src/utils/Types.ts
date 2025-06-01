@@ -138,7 +138,8 @@ export interface ButtonType{
     styleClass: string,
     spinnerStyleClass: string,
     delay: number,
-    onClick: (() => void) | ((e: any) => void)
+    type?: "submit" | "button" | "reset",
+    onClick?: (() => void) | ((e: any) => void)
 }
 
 export interface AuthContextType{
@@ -248,6 +249,7 @@ export interface TableType{
     emptyText: string,
     loading: boolean,
     canEdit?: boolean,
+    canView?: boolean,
     canDelete?: boolean,
     isFilterable?: boolean,
     listStyle: string,
@@ -265,6 +267,7 @@ export interface TableRowType{
     entity: GenericObjectType,
     displayKeys: string[],
     canEdit?: boolean,
+    canView?: boolean,
     canDelete?: boolean,
     deleteApiRoute?: string,
     selectEntity?: (e: GenericObjectType) => void,

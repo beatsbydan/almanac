@@ -374,7 +374,7 @@ public class AuthMgtService implements LogoutHandler {
 
     private AppUser toUserDbModel(StaffSignUpRequest request){
         return AppUser.builder()
-                .userId(request.getStaffId())
+                .userId(request.getStaffId().toUpperCase())
                 .userEmail(request.getStaffEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.LECTURER)
@@ -384,7 +384,7 @@ public class AuthMgtService implements LogoutHandler {
     }
     private AppUser toUserDbModel(StudentSignUpRequest request, Department department, Level level){
         return AppUser.builder()
-                .userId(request.getStudentId())
+                .userId(request.getStudentId().toUpperCase())
                 .userEmail(request.getStudentEmail())
                 .department(department)
                 .level(level)

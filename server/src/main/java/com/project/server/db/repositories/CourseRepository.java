@@ -48,7 +48,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     @Query("""
     SELECT DISTINCT c FROM Course c
     LEFT JOIN c.courseCodes cc
-    WHERE LOWER(cc.courseCode) LIKE LOWER(CONCAT('%', :key, '%'))
+    WHERE LOWER(c.courseTitle) LIKE LOWER(CONCAT('%', :key, '%'))
+    OR LOWER(cc.courseCode) LIKE LOWER(CONCAT('%', :key, '%'))
     """)
     List<Course> filterCourses(@Param("key") String key);
 }

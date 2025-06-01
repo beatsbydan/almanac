@@ -48,10 +48,7 @@ const Courses:React.FC = () => {
       for(let course of [...responseBody!.result]){
         const updatedCourse = {
           ...course,
-          courseCodesString: course?.courseCodes?.join(", "),
-          isGeneral: course?.general,
-          isBatched: course?.batched,
-          isShared: course?.shared
+          courseCodesString: course?.courseCodes?.join(", ")
         }
         updatedCourses.push(updatedCourse)
       }

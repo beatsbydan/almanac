@@ -134,7 +134,12 @@ export const ApiContextProvider:React.FC<{children: ReactNode}> = ({children}) =
             apiResponse.responseBody = response.data
         }
         catch(error: any){
-            apiResponse.error = {...error.response.data}
+            if(error.response.status === 400){
+                apiResponse.error = {
+                    message: "You have no schedules in this TimeTable."
+                }
+            }
+            else apiResponse.error = {...error.response.data}
         }
 
         return apiResponse;

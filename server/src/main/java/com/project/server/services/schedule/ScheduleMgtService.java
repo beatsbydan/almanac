@@ -13,6 +13,7 @@ import com.project.server.dtos.request.course.CourseParticipantResponse;
 import com.project.server.dtos.response.*;
 import com.project.server.enums.Status;
 import com.project.server.enums.Type;
+import com.project.server.exceptions.BadRequestException;
 import com.project.server.exceptions.DuplicateEntryException;
 import com.project.server.exceptions.NotFoundException;
 import com.project.server.exceptions.ScheduleUpsertException;
@@ -164,7 +165,7 @@ public class ScheduleMgtService {
         return acquiredLocks;
     }
 
-    private Map<String, Object> formatTimePeriod(ScheduleRequest request){
+    private Map<String, Object> formatTimePeriod(ScheduleRequest request) throws ScheduleUpsertException{
         Map<String, Object> timeParams = new HashMap<>();
 
         String splitRegex = ":00";
@@ -174,6 +175,8 @@ public class ScheduleMgtService {
 
         int startTime = Integer.parseInt(startTimeString);
         int endTime = startTime + Integer.parseInt(Arrays.stream(request.getTimeDuration().split(" ")).toList().getFirst());
+
+        if(endTime > 18) throw new ScheduleUpsertException("Classes can't extend beyond 18:00PM");
 
         String endTimeString = String.valueOf(endTime);
         String endTimeStringSuffix = endTime >= 12 ? "pm" : startTimeStringSuffix;
@@ -241,9 +244,9 @@ public class ScheduleMgtService {
                  .code(course.getCode())
                  .courseTitle(course.getCourseTitle())
                  .courseUnit(course.getCourseUnit().toString())
-                 .isBatched(course.isBatched())
-                 .isShared(course.isShared())
-                 .isGeneral(course.isGeneral())
+                 .batched(course.isBatched())
+                 .shared(course.isShared())
+                 .general(course.isGeneral())
                  .expectedClassSize(course.getExpectedClassSize().toString())
                  .courseCodes(courseCodesResponse)
                 .courseParticipants(courseParticipantResponses)
@@ -254,11 +257,12 @@ public class ScheduleMgtService {
         List<ClassroomResponse> responses = new ArrayList<>();
 
         for(ClassRoom room : classRooms){
+            String college = room.getCollege() != null ? room.getCollege().getShortName() : null;
             responses.add(ClassroomResponse.builder()
                     .className(room.getName())
                     .code(room.getCode())
                     .classSize(room.getCapacity())
-                    .college(room.getCollege().getShortName())
+                    .college(college)
                     .build());
         }
 

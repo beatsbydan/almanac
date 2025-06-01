@@ -21,7 +21,10 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
     }, [inputFields])
 
     useEffect(() => {
-        if(suggestion) setInputValues({...suggestion})
+        if(suggestion){
+            saveClassrooms(suggestion?.classrooms)
+            setInputValues(suggestion)
+        }
     }, [suggestion])
 
     const [inputValues, setInputValues] = useState<GenericObjectType>({
@@ -146,7 +149,8 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
         })
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         const payload = {
             userId: user?.id,
             recurringDay: inputValues.recurringDay,
@@ -170,7 +174,6 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
             )
 
             if(success){
-                console.log(responseBody)
                 alertSuccess(responseBody!.result.message)
                 clearInputFields()
                 closeModal()
@@ -195,9 +198,9 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
                     onClick={closeModal}
                 />
             </div>
-            <div className='w-full h-[calc(100%-20px)]'>
+            <div className='w-full'>
                 <Scroll>
-                    <form className='w-full flex flex-col gap-1 items-end h-full'>
+                    <form className='w-full flex flex-col gap-1 items-end h-full' onSubmit={handleSubmit}>
                         <motion.div 
                             className="mt-3 w-full"
                             initial={{ opacity: 0, x: -50 }}
@@ -256,7 +259,7 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
                                 canSearch={true}
                                 searchOnly={true}
                                 error={inputErrors.course}
-                                searchPlaceholder="Search course by course code"
+                                searchPlaceholder="Search course by course code ot title.."
                             />
                         </motion.div>}
                         <motion.div 
@@ -280,16 +283,17 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
                                 optionsApiRoute={ApiRoutes.CLASS_ROOM.filter}
                             />
                         </motion.div>
+                        <Button
+                            processing={processing}
+                            type="submit"
+                            styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-3'
+                            spinnerStyleClass='w-6 h-6 mx-auto'
+                            delay={1.2}
+                        >
+                            {inputFields ? "Update" : "Create"}
+                        </Button>
                     </form>
-                    <Button
-                        processing={processing}
-                        onClick={ handleSubmit}
-                        styleClass='bg-bowen-blue hover:border-bowen-blue -mt-4 text-white font-semibold'
-                        spinnerStyleClass='w-6 h-6 mx-auto'
-                        delay={1.2}
-                    >
-                        {inputFields ? "Update" : "Create"}
-                    </Button>
+                    
                 </Scroll>
             </div>
         </div>

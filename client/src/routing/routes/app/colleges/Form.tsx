@@ -61,7 +61,8 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, reFetchMethod: () => 
         })
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         const errors = ValidateCollegeForm(inputValues);
         setInputErrors(errors);
 
@@ -90,13 +91,13 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, reFetchMethod: () => 
     }
 
     return (
-        <div className='w-full h-[calc(83vh-250px)] relative'>
+        <div className='w-full relative'>
             <X
                 className="cursor-pointer right-0 absolute -top-8 text-light-gray"
                 onClick={closeModal}
             />
 
-            <form className='w-full flex flex-col gap-3 mt-7 mb-5 items-end'>
+            <form className='w-full flex flex-col gap-3 mt-7 items-end' onSubmit={handleSubmit}>
                 <Input
                     name="collegeName"
                     type="text"
@@ -117,16 +118,16 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, reFetchMethod: () => 
                     onChange={handleChange}
                     delay={0.4}
                 />
+                <Button
+                    processing={processing}
+                    type="submit"
+                    styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-5'
+                    spinnerStyleClass='w-6 h-6 mx-auto'
+                    delay={0.6}
+                >
+                    {inputFields ? "Update" : "Create"}
+                </Button>
             </form>
-            <Button
-                processing={processing}
-                onClick={handleSubmit}
-                styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-5'
-                spinnerStyleClass='w-6 h-6 mx-auto'
-                delay={0.6}
-            >
-                {inputFields ? "Update" : "Create"}
-            </Button>
         </div>
     )
 }

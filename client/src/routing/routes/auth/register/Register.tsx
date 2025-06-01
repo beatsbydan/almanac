@@ -169,7 +169,8 @@ const Register:React.FC = () => {
         setInputValues({...inputValues, title: e})
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         const errors = ValidateRegistrationForm(inputValues, isStudentForm)
         setInputErrors(errors);
 
@@ -193,7 +194,7 @@ const Register:React.FC = () => {
 
             const { success, error, responseBody } = await makePostRequest(
                 ApiRoutes.AUTH.register + pathVariable,
-                isStudentForm ? {...studentInputFields} : {...staffInputFields}
+                isStudentForm ? {...studentInputFields} : {...staffInputFields, name:`${inputValues.title} ${inputValues.firstName} ${inputValues.lastName}`}
             )
 
             if(success){
@@ -245,7 +246,7 @@ const Register:React.FC = () => {
                         </button>
                 </AuthCardComponentReveal>
             </AuthCardComponentReveal>
-            <div className='w-full h-[calc(83vh-160px)]'>
+            <form className='w-full h-[calc(83vh-160px)]' onSubmit={handleSubmit}>
                 {isStudentForm ? 
                     <StudentForm
                         inputValues={inputValues}
@@ -269,14 +270,14 @@ const Register:React.FC = () => {
                     className="text-light-gray text-center">Already have an account? <span><Link to="/login" className="text-black font-semibold pb-1 border-b-orange border-b-[1.5px]">Login</Link></span></motion.p>
                 <Button
                     processing={processing}
-                    onClick={handleSubmit}
+                    type='submit'
                     styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-5'
                     spinnerStyleClass='w-6 h-6 mx-auto'
                     delay={2.2}
                 >
                     Create Account
                 </Button>
-            </div>
+            </form>
         </Card>
     )
 }

@@ -16,7 +16,6 @@
     <include file="classpath:db/migrations/course_participant_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/course_participant_department_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/user_schema.xml" relativeToChangelogFile="false"/>
-    <include file="classpath:db/migrations/user_course_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/schedule_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/schedule_combination_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/schedule_classroom_schema.xml" relativeToChangelogFile="false"/>

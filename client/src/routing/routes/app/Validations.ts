@@ -92,7 +92,7 @@ export const ValidateCourseForm = (data:GenericObjectType) => {
     
     let errors: GenericObjectType = {}
     const { 
-        isBatched, isGeneral, isShared, ...rest
+        batched, shared, general, ...rest
     } = data;
 
     const {

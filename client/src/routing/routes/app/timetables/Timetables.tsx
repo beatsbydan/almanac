@@ -58,7 +58,7 @@ const Timetables:React.FC = () => {
                         <AdminPermission>
                             <ComponentReveal
                                 styleClass=''
-                                delay={0.8}
+                                delay={0.2}
                                 type="container"
                             >
                                 <button 

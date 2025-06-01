@@ -62,7 +62,8 @@ const Login:React.FC = () => {
         })
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         const errors = ValidateLoginForm(inputValues);
         setInputErrors(errors);
 
@@ -103,7 +104,7 @@ const Login:React.FC = () => {
     return (
         <Card header='Login' subHeader='Welcome back!'>
             <div className='w-full h-full'>
-                <form className='w-full flex flex-col gap-3 py-7 items-end'>
+                <form className='w-full flex flex-col gap-3 pt-7 items-end' onSubmit={handleSubmit}>
                     <Input
                         name="userId"
                         type="text"
@@ -124,22 +125,22 @@ const Login:React.FC = () => {
                         onChange={handleChange}
                         delay={0.4}
                     />
-                    <Link to="/verify-email" className='text-[14px] text-light-gray font-medium -mb-3'>Forgot password?</Link>
+                    <Link to="/verify-email" className='text-[14px] text-light-gray font-medium'>Forgot password?</Link>
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: "easeOut", delay: 0.6 }}
+                        className="text-light-gray text-center w-full">Don't have an account? <span><Link to="/register" className="text-black font-semibold pb-1 border-b-orange border-b-[1.5px]">Register</Link></span></motion.p>
+                    <Button
+                        processing={processing}
+                        type='submit'
+                        styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-2'
+                        delay={0.8}
+                        spinnerStyleClass='w-6 h-6 mx-auto'
+                    >
+                        Login
+                    </Button>
                 </form>
-                <motion.p 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: "easeOut", delay: 0.6 }}
-                    className="text-light-gray text-center">Don't have an account? <span><Link to="/register" className="text-black font-semibold pb-1 border-b-orange border-b-[1.5px]">Register</Link></span></motion.p>
-                <Button
-                    processing={processing}
-                    onClick={handleSubmit}
-                    styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-5'
-                    delay={0.8}
-                    spinnerStyleClass='w-6 h-6 mx-auto'
-                >
-                    Login
-                </Button>
             </div>
         </Card>
     )

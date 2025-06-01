@@ -46,7 +46,9 @@ const ResetPassword:React.FC = () => {
         })
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
         const errors = ValidateResetPasswordForm(inputValues);
         setInputErrors(errors);
 
@@ -74,7 +76,7 @@ const ResetPassword:React.FC = () => {
     return (
         <Card header='Reset Password' subHeader='Enter your new password!'>
             <div className='w-full h-full'>
-                <form className='w-full flex flex-col gap-3 py-7 items-end'>
+                <form className='w-full flex flex-col gap-3 pt-7 items-end' onSubmit={handleSubmit}>
                     <Input
                         name="password"
                         type="password"
@@ -95,16 +97,16 @@ const ResetPassword:React.FC = () => {
                         onChange={handleChange}
                         delay={0.4}
                     />
+                    <Button
+                        processing={processing}
+                        type='submit'
+                        styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-4'
+                        delay={0.6}
+                        spinnerStyleClass='w-6 h-6 mx-auto'
+                    >
+                        Reset Password
+                    </Button>
                 </form>
-                <Button
-                    processing={processing}
-                    onClick={handleSubmit}
-                    styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-7'
-                    delay={0.6}
-                    spinnerStyleClass='w-6 h-6 mx-auto'
-                >
-                    Reset Password
-                </Button>
             </div>
         </Card>
     )

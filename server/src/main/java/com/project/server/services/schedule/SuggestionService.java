@@ -38,15 +38,16 @@ public class SuggestionService {
 
         List<ClassRoom> rooms = (college != null) ? classRoomService.findAllByCollege(college) : classRoomService.getClassroomsWithoutCollege();
 
-        log.info(rooms.toString());
-
         if(classSize != null) {
             int size = Integer.parseInt(Arrays.stream(classSize.split("< ")).toList().getLast());
             rooms.removeIf(room -> room.getCapacity() < size);
         }
 
-        while (suggestions.size() < 10){
-            Random random = new Random();
+        Random random = new Random();
+        long generationStartTime = System.currentTimeMillis();
+        long generationPeriod = 10_000;
+
+        while (suggestions.size() < 10 && ((System.currentTimeMillis() - generationStartTime) < generationPeriod)){
             String randomDay = (day != null) ? day : VariableUtil.DAYS.get(random.nextInt(VariableUtil.DAYS.size()));
             String randomStartTime = (startTime != null) ? startTime : VariableUtil.TIMES.get(random.nextInt(VariableUtil.TIMES.size()));
             String randomDuration = (duration != null) ? duration : VariableUtil.DURATIONS.get(random.nextInt(VariableUtil.DURATIONS.size()));
@@ -75,6 +76,8 @@ public class SuggestionService {
         int startTimeInt = Integer.parseInt(startTimeString);
         int endTime = startTimeInt + Integer.parseInt(Arrays.stream(duration.split(" ")).toList().getFirst());
 
+        if(endTime > 18) endTime = 18;
+
         String endTimeString = String.valueOf(endTime);
         String endTimeStringSuffix = endTime >= 12 ? "pm" : startTimeStringSuffix;
 
@@ -94,12 +97,13 @@ public class SuggestionService {
 
         for(Suggestion suggestion : suggestions){
             ClassRoom room = suggestion.getClassRoom();
+            String collegeName = room.getCollege() != null ? room.getCollege().getShortName() : null;
             response.add(SuggestionResponse.builder()
                             .classRoom(ClassroomResponse.builder()
                                     .className(room.getName())
                                     .code(room.getCode())
                                     .classSize(room.getCapacity())
-                                    .college(room.getCollege().getShortName())
+                                    .college(collegeName)
                                     .build())
                             .duration(suggestion.getDuration())
                             .time(suggestion.getTime())

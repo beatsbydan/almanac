@@ -27,11 +27,11 @@ public class CourseRequest {
     private String expectedClassSize;
 
     @NotNull(message = "isShared cannot be null.")
-    private boolean isShared;
+    private boolean shared;
 
     @NotNull(message = "isBatched cannot be null.")
-    private boolean isBatched;
+    private boolean batched;
 
     @NotNull(message = "isGeneral cannot be null.")
-    private boolean isGeneral;
+    private boolean general;
 }

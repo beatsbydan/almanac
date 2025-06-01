@@ -47,7 +47,9 @@ const VerifyEmail:React.FC = () => {
         })
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
         const errors = ValidateEmailVerificationForm(inputValues);
         setInputErrors(errors);
 
@@ -73,7 +75,7 @@ const VerifyEmail:React.FC = () => {
     return (
         <Card header='Verify Email' subHeader='Enter your email to start the recovery process!'>
             <div className='w-full h-full'>
-                <form className='w-full py-7'>
+                <form className='w-full pt-7' onSubmit={handleSubmit}>
                     <Input
                         name="staffEmail"
                         type="text"
@@ -84,16 +86,16 @@ const VerifyEmail:React.FC = () => {
                         onChange={handleChange}
                         delay={0.2}
                     />
+                    <Button
+                        processing={processing}
+                        type='submit'
+                        styleClass='bg-bowen-blue hover:border-bowen-blue text-white mt-5 font-semibold'
+                        delay={0.4}
+                        spinnerStyleClass='w-6 h-6 mx-auto'
+                    >
+                        Send
+                    </Button>
                 </form>
-                <Button
-                    processing={processing}
-                    onClick={handleSubmit}
-                    styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold'
-                    delay={0.4}
-                    spinnerStyleClass='w-6 h-6 mx-auto'
-                >
-                    Send
-                </Button>
             </div>
         </Card>
     )

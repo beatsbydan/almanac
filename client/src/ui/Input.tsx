@@ -136,7 +136,7 @@ export const ListInput:React.FC<ListInputType> = ({
     }, [list])
 
     const addToList = () => {
-        if(!list.includes(inputValue)){
+        if(inputValue !== "" && !list.includes(inputValue)){
             const newItems = [...list, inputValue]
             setList(newItems)
             save(newItems)
@@ -196,6 +196,7 @@ export const ListInput:React.FC<ListInputType> = ({
                     <div className='w-[25%]'>
                         <Button
                             processing={false}
+                            type="button"
                             onClick={addToList}
                             styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-6'
                             spinnerStyleClass='w-6 h-6 mx-auto'

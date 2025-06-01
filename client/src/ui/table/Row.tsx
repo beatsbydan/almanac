@@ -13,6 +13,7 @@ const Row:React.FC<TableRowType> = ({
     entity,
     displayKeys,
     canEdit,
+    canView,
     canDelete,
     deleteApiRoute,
     selectEntity,
@@ -53,7 +54,7 @@ const Row:React.FC<TableRowType> = ({
                 )
             })}
             <div className='text-center flex items-center justify-center gap-5'>
-                {canEdit && 
+                {(canEdit || canView) && 
                     <div className='relative'>
                         <Pencil 
                             size={18} 
@@ -71,7 +72,7 @@ const Row:React.FC<TableRowType> = ({
                                     className="relative bg-black px-4 py-2 rounded-md shadow-lg"
                                 >
                                     <div className="absolute left-1/2 -translate-x-1/2 -top-[15px] rotate-90 border-y-12 border-r-12 border-l-0 border-solid border-transparent border-r-black"/>
-                                    <p className='text-white text-sm'>Edit</p>
+                                    <p className='text-white text-sm'>{canView ? "Use" : "Edit"}</p>
                                 </motion.div>
                             </div>
                         }

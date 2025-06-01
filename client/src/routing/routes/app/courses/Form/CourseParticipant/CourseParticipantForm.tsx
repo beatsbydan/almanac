@@ -48,6 +48,10 @@ const CourseParticipantForm:React.FC<CourseParticipantFormType> = ({save, update
         setInputValues({...inputValues, departments: [...values]})
     }
 
+    const handleKeyDown = (e:React.KeyboardEvent) => {
+        if(e.key === "Enter") saveParticipant()
+    }
+
     const saveParticipant = () => {
         const errors = ValidateCourseParticipantForm(inputValues);
         setInputErrors({...errors})
@@ -59,7 +63,7 @@ const CourseParticipantForm:React.FC<CourseParticipantFormType> = ({save, update
     }
 
     return (
-        <div className='w-full relative'>
+        <div className='w-full relative' onKeyDown={handleKeyDown}>
             <div className='w-full flex justify-end'>
                 <X
                     className="cursor-pointer right-0 flex justify-end text-light-gray"
@@ -68,7 +72,7 @@ const CourseParticipantForm:React.FC<CourseParticipantFormType> = ({save, update
             </div>
             <div className='w-full mt-5'>
                 <Scroll>
-                    <form className='flex flex-col gap-3'>
+                    <div className='flex flex-col gap-3'>
                         <motion.div 
                             className="w-full"
                             initial={{ opacity: 0, x: -50 }}
@@ -113,7 +117,7 @@ const CourseParticipantForm:React.FC<CourseParticipantFormType> = ({save, update
                         >
                             {participant ? "Update Participant" : "Add Participant"}
                         </Button>
-                    </form>
+                    </div>
                 </Scroll>
             </div>
         </div>

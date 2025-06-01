@@ -9,11 +9,12 @@ const Button:React.FC<ButtonType> = ({
   onClick, 
   spinnerStyleClass, 
   styleClass, 
-  delay
+  delay,
+  type
 }) => {
   return (
     <motion.button
-      type='button'
+      type={type}
       className={"rounded-lg p-3 w-full cursor-pointer hover:bg-transparent hover:text-bowen-blue transition-colors ease-in-out border-1 border-transparent  " + styleClass + ` ${processing ? "bg-transparent" : ""}`}
       onClick={onClick}
       disabled={processing}

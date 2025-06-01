@@ -21,9 +21,9 @@ public class CourseResponse {
 
     private String expectedClassSize;
 
-    private boolean isShared;
+    private boolean shared;
 
-    private boolean isBatched;
+    private boolean batched;
 
-    private boolean isGeneral;
+    private boolean general;
 }

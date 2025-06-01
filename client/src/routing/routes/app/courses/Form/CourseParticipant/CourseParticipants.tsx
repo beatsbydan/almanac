@@ -24,6 +24,7 @@ const CourseParticipants:React.FC<courseParticipantsType> = ({save, removePartic
                 <p className='text-[13px] w-full'>Add Course Participants</p>
                 <Button
                     processing={false}
+                    type="button"
                     onClick={()=>setOpen(true)}
                     styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold'
                     spinnerStyleClass='w-6 h-6 mx-auto'

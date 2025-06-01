@@ -28,7 +28,7 @@ const StudentForm:React.FC<RegisterFormType> = ({
     }
     
     return (
-        <form className='w-full flex flex-col gap-3 mb-5 items-end'>
+        <div className='w-full flex flex-col gap-3 mb-5 items-end'>
             <Input
                 name="userEmail"
                 type="text"
@@ -102,7 +102,7 @@ const StudentForm:React.FC<RegisterFormType> = ({
                 onChange={handleChange}
                 delay={1.8}
             />
-        </form>
+        </div>
     )
 }
 

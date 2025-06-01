@@ -23,6 +23,6 @@ public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
     @Query("SELECT c FROM ClassRoom c WHERE c.college IS NULL")
     List<ClassRoom> findAllWithoutCollege();
 
-    @Query("SELECT c FROM ClassRoom c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :key, '%')) OR LOWER(c.college.name) LIKE LOWER(CONCAT('%', :key, '%'))")
+    @Query("SELECT c FROM ClassRoom c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :key, '%')) OR LOWER(c.college.name) LIKE LOWER(CONCAT('%', :key, '%')) OR LOWER(c.college.shortName) LIKE LOWER(CONCAT('%', :key, '%'))")
     List<ClassRoom> filterByNameOrCollege(@Param("key") String key);
 }

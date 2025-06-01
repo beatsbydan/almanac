@@ -9,7 +9,6 @@ import java.util.List;
 public interface CourseService {
     Course findByCode(String code) throws NotFoundException;
     Course findByTitle(String title) throws NotFoundException;
-    Course findByCourseCode(String courseCode) throws NotFoundException;
     Course save(Course course);
     boolean isExistingCourse(CourseRequest request);
     List<Course> getAllUniversityWideCourses();

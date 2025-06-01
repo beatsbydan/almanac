@@ -11,10 +11,10 @@ import Dropdown from '../../../../../ui/Dropdown';
 import ApiRoutes from '../../../../../utils/ApiRoutes';
 import Scroll from '../../../../../ui/Scroll';
 import CourseParticipants from './CourseParticipant/CourseParticipants';
+import { ClassSizes } from '../../../../../utils/Constants';
 
 const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => void}> = ({closeModal, inputValues: inputFields, refetchMethod}) => {
     const { makePostRequest, makePutRequest } = useApi();
-
 
     useEffect(() => {
         if(inputFields){
@@ -28,9 +28,9 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
         courseCodes: [],
         courseParticipants: [],
         expectedClassSize: undefined,
-        isShared: false,
-        isBatched: false,
-        isGeneral: false
+        shared: false,
+        batched: false,
+        general: false
     })
 
     const [inputErrors, setInputErrors] = useState<GenericObjectType>({
@@ -73,13 +73,13 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
         setInputValues({...inputValues, expectedClassSize: e})
     }
     const handleSharedChange = () => {
-        setInputValues({...inputValues, isShared: !inputValues.isShared})
+        setInputValues({...inputValues, shared: !inputValues.shared})
     }
     const handleBatchedChange = () => {
-        setInputValues({...inputValues, isBatched: !inputValues.isBatched})
+        setInputValues({...inputValues, batched: !inputValues.batched})
     }
     const handleGeneralChange = () => {
-        setInputValues({...inputValues, isGeneral: !inputValues.isGeneral})
+        setInputValues({...inputValues, general: !inputValues.general})
     }
 
     const saveParticipant = (e: GenericObjectType) => {
@@ -139,7 +139,8 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
         })
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         const errors = ValidateCourseForm(inputValues);
         setInputErrors(errors);
 
@@ -180,7 +181,7 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
             </div>
             <div className='w-full h-full'>
                 <Scroll>
-                    <form className='w-full flex flex-col gap-3 items-end h-full'>
+                    <form className='w-full flex flex-col gap-3 items-end h-full' onSubmit={handleSubmit}>
                         <Input
                             name="courseTitle"
                             type="text"
@@ -231,7 +232,7 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
                             <Dropdown
                                 save={handleClassSizeChange}
                                 placeHolder='Expected Class Size'
-                                options={["< 100", "< 500", "< 1000", "< 1500", "1500"]}
+                                options={ClassSizes}
                                 value={inputValues.expectedClassSize}
                                 error={inputErrors.expectedClassSize}
                             />
@@ -239,27 +240,26 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
                         <div className='w-full flex items-center justify-center gap-5 my-3'>
                             <RadioButtonInput
                                 handleChange={handleBatchedChange}
-                                value={inputValues.isBatched}
+                                value={inputValues.batched}
                                 label={"Batched course"}
                                 delay={1.2}
                             />
                             <RadioButtonInput
                                 handleChange={handleSharedChange}
-                                value={inputValues.isShared}
+                                value={inputValues.shared}
                                 label={"Shared course"}
                                 delay={1.4}
                             />
                             <RadioButtonInput
                                 handleChange={handleGeneralChange}
-                                value={inputValues.isGeneral}
+                                value={inputValues.general}
                                 label={"General course"}
                                 delay={1.6}
                             />
                         </div>
-                            
                         <Button
                             processing={processing}
-                            onClick={handleSubmit}
+                            type="submit"
                             styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold'
                             spinnerStyleClass='w-6 h-6 mx-auto'
                             delay={1.2}

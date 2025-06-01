@@ -11,7 +11,7 @@ const StaffForm:React.FC<RegisterFormType> = ({
     handleTitleChange,
 }) => {
     return (
-        <form className='w-full flex flex-col gap-3 mb-5 items-end'>
+        <div className='w-full flex flex-col gap-3 mb-5 items-end'>
             <motion.div 
                 className="mt-3 w-full"
                 initial={{ opacity: 0, x: -50 }}
@@ -101,7 +101,7 @@ const StaffForm:React.FC<RegisterFormType> = ({
                 onChange={handleChange}
                 delay={2.2}
             />
-        </form>
+        </div>
     )
 }
 

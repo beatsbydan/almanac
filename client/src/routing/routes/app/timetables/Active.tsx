@@ -64,7 +64,7 @@ const Active:React.FC<ActiveTimeTableType> = ({timetable, openModal, refetchMeth
             alertSuccess("Timetable Downloaded!")
         }   
         if(error){
-            alertFailure(error!.result.message)
+            alertFailure(error!.message)
         }
         setProcessingDownload(false)
     }, [])

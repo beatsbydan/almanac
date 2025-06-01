@@ -19,8 +19,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             LEFT JOIN c.courseParticipants cp
             LEFT JOIN cp.level l
             LEFT JOIN cp.departments d
-            WHERE (:level IS NULL OR l.level = :level)
-            AND (:department IS NULL OR d.name = :department)
+            WHERE l.level = :level
+            AND d.name = :department
             """)
     List<Schedule> findByCourseRepresentative(
             @Param("level") String level,

@@ -3,7 +3,7 @@ import { FilterType, FilterParamsType, GenericObjectType } from '../utils/Types'
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion'
 import { Input, RadioButtonInput } from './Input';
-import { DaysOfTheWeek } from '../utils/Constants';
+import { DaysOfTheWeek, TimePeriods } from '../utils/Constants';
 import { useAuth } from '../hooks/useContexts';
 import Dropdown from './Dropdown'
 import Button from './Button';
@@ -225,10 +225,129 @@ export const ScheduleFilter:React.FC<FilterParamsType & {closeModal: ()=>void}> 
     )
 })
 
-export const SuggestionFilter:React.FC = () => {
+export const SuggestionFilter:React.FC<FilterParamsType & {closeModal: ()=>void}> = React.memo(({setFilter, closeModal}) => {
+    const [filterParams, setFilterParams] = useState<GenericObjectType>({
+        day: null,
+        startTime: null,
+        duration: null,
+        college: null,
+        classSize: null
+    })
+    const [dropdownValues, setDropDownValues] = useState<GenericObjectType>({
+        college: []
+    })
+
+    const saveColleges = (e: GenericObjectType[]) => {
+        const mappedColleges = e.map(college => college?.collegeShortName)
+        setDropDownValues({...dropdownValues, colleges: [...mappedColleges]})
+    }
+    
+    const handleDayChange = (e: string) => {
+        setFilterParams({...filterParams, day: e})
+    }
+    const handleStartTimeChange = (e: string) => {
+        setFilterParams({...filterParams, startTime: e})
+    }
+    const handleTimeDurationChange = (e: string) => {
+        setFilterParams({...filterParams, duration: e})
+    }
+    const handleClassSizeChange = (e: string) => {
+        setFilterParams({...filterParams, classSize: e})
+    }
+    const handleCollegeChange = (e: string) => {
+        setFilterParams({...filterParams, college: e})
+    }
+    
+    const save = () => {
+        setFilter({...filterParams})
+        closeModal()
+    }
+
     return (
-        <div>
-            
+        <div className='w-full relative'>
+            <X
+                className="cursor-pointer right-0 absolute -top-6 text-light-gray"
+                onClick={closeModal}
+            />
+            <p className='font-semibold mt-3 text-[24px]'>Filter</p>
+            <form className='w-full flex flex-col gap-3 mb-5 items-end h-full'>
+                <motion.div 
+                    className="mt-3 w-full"
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
+                >
+                    <Dropdown
+                        save={handleDayChange}
+                        placeHolder='Day'
+                        options={DaysOfTheWeek}
+                        value={filterParams.day}
+                    />
+                </motion.div>
+                <motion.div 
+                    className="w-full"
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut", delay: 0.4 }}
+                >
+                    <Dropdown
+                        save={handleStartTimeChange}
+                        placeHolder='Select a start time..'
+                        options={TimePeriods}
+                        value={filterParams.startTime}
+                    />
+                </motion.div>
+                <motion.div 
+                    className="w-full"
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut", delay: 0.6 }}
+                >
+                    <Dropdown
+                        save={handleTimeDurationChange}
+                        placeHolder='Time Period'
+                        options={["1 hour", "2 hours"]}
+                        value={filterParams.timeDuration}
+                    />
+                </motion.div>
+                <motion.div 
+                    className="w-full"
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut", delay: 0.8 }}
+                >
+                    <Dropdown
+                        save={handleCollegeChange}
+                        placeHolder='College'
+                        options={dropdownValues.colleges}
+                        optionsApiRoute={ApiRoutes.COLLEGE.get}
+                        value={filterParams.college}
+                        saveOptions={saveColleges}
+                    />
+                </motion.div>
+                <motion.div 
+                    className="w-full"
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut", delay: 1.0 }}
+                >
+                    <Dropdown
+                        save={handleClassSizeChange}
+                        placeHolder='Expected Class Size'
+                        options={["< 100", "< 200", "< 300", "< 400", "< 500", "< 1000", "< 1500", "1500"]}
+                        value={filterParams.classSize}
+                    />
+                </motion.div>
+            </form>
+            <Button
+                processing={false}
+                onClick={save}
+                styleClass='bg-bowen-blue hover:border-bowen-blue text-white font-semibold mt-5'
+                spinnerStyleClass='w-6 h-6 mx-auto'
+                delay={1.2}
+            >
+                Apply
+            </Button>
         </div>
     )
-}
+})

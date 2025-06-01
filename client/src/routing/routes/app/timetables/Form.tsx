@@ -96,7 +96,7 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, refetchMethod: () => 
     }
 
     return (
-        <div className='w-full h-[calc(83vh-160px)] relative'>
+        <div className='w-full relative'>
             <X
                 className="cursor-pointer right-0 absolute -top-8 text-light-gray"
                 onClick={closeModal}
