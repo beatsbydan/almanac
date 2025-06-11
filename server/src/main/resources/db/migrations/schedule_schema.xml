@@ -17,6 +17,12 @@
             <column name="code" type="VARCHAR(100)">
                 <constraints unique="true" uniqueConstraintName="uk_schedule" nullable="false"/>
             </column>
+            <column name="start_time" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
             <column name="day" type="VARCHAR(100)">
                 <constraints nullable="false"/>
             </column>

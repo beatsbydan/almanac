@@ -11,9 +11,11 @@ public interface ScheduleCombinationService {
     boolean isExistingCombination(
             String day,
             int startTime,
+            int endTime,
             String className,
             String timetableCode);
     void save(ScheduleCombination combination);
+    void save(List<ScheduleCombination> combinations);
     List<ScheduleCombination> getBySchedule(String code);
     void deleteAllBySchedule(String scheduleCode);
     List<ScheduleCombination> getByFilterParams(String userId, String day, String timetableCode);

@@ -30,7 +30,6 @@ const Row:React.FC<TableRowType> = ({
         const { success, error, responseBody } = await makeDeleteRequest(`${deleteApiRoute + entity?.code}`)
 
         if(success){
-            console.log(responseBody)
             alertSuccess(responseBody!.result.message)
             refetchMethod!()
         }

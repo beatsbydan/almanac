@@ -12,7 +12,7 @@ import Dropdown from '../../../../ui/Dropdown';
 import ApiRoutes from '../../../../utils/ApiRoutes';
 import Scroll from '../../../../ui/Scroll';
 
-const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericObjectType | undefined, refetchMethod: ()=> void}> = ({closeModal, inputValues: inputFields, suggestion, refetchMethod}) => {
+const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericObjectType | undefined, refetchMethod: ()=> void, clearSuggestion: () => void}> = ({closeModal, inputValues: inputFields, suggestion, refetchMethod, clearSuggestion}) => {
     const { makePostRequest, makePutRequest } = useApi();
     const { user } = useAuth()
 
@@ -176,6 +176,7 @@ const Form:React.FC<ModalFormType & {closeModal: ()=>void, suggestion: GenericOb
             if(success){
                 alertSuccess(responseBody!.result.message)
                 clearInputFields()
+                clearSuggestion()
                 closeModal()
                 refetchMethod()
             }

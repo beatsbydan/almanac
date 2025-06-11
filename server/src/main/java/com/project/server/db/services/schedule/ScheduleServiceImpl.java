@@ -1,6 +1,7 @@
 package com.project.server.db.services.schedule;
 
 import com.project.server.db.models.AppUser;
+import com.project.server.db.models.CourseParticipant;
 import com.project.server.db.models.Schedule;
 import com.project.server.db.repositories.ScheduleRepository;
 import com.project.server.exceptions.NotFoundException;
@@ -45,5 +46,10 @@ public class ScheduleServiceImpl implements ScheduleService{
     @Override
     public void deleteByCode(String code) {
         repository.deleteByCode(code);
+    }
+
+    @Override
+    public boolean hasScheduleAtTime(int startTime, int endTime, List<CourseParticipant> participants) {
+        return !repository.findConflictingSchedules(startTime, endTime, participants).isEmpty();
     }
 }

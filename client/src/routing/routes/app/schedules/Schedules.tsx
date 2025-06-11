@@ -200,7 +200,13 @@ const Schedules:React.FC = () => {
 
       {formOpen && 
         <UpsertModal isOpen={formOpen} closeModal={closeModal}>
-          <Form inputValues={inputValues} suggestion={suggestion} closeModal={closeModal} refetchMethod={getSchedules}/>
+          <Form 
+            inputValues={inputValues} 
+            suggestion={suggestion} 
+            clearSuggestion={()=>setSuggestion(undefined)} 
+            closeModal={closeModal} 
+            refetchMethod={getSchedules}
+          />
         </UpsertModal>
       }
     </Card>

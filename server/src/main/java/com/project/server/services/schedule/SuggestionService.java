@@ -59,6 +59,7 @@ public class SuggestionService {
             if((!scheduleCombinationService.isExistingCombination(
                     randomDay,
                     Integer.parseInt(Arrays.stream(randomStartTime.split(":00")).toList().getFirst()),
+                    Integer.parseInt(Arrays.stream(randomStartTime.split(":00")).toList().getLast()),
                     randomClassRoom.getName(),
                     timeTable.getCode()
             )) && !suggestions.contains(suggestion)) suggestions.add(suggestion);

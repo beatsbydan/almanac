@@ -1,5 +1,6 @@
 package com.project.server.db.repositories;
 
+import com.project.server.db.models.CourseParticipant;
 import com.project.server.db.models.Schedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,6 +14,19 @@ import java.util.List;
 @Repository
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     Schedule findByCode(String code);
+    @Query("""
+            SELECT DISTINCT s FROM Schedule s
+            JOIN s.course c
+            JOIN c.courseParticipants cp
+            WHERE :startTime < s.endTime
+            AND :endTime > s.startTime
+            AND cp IN :courseParticipants
+            """)
+    List<Schedule> findConflictingSchedules(
+            @Param("startTime") int startTime,
+            @Param("endTime") int endTime,
+            @Param("courseParticipants") List<CourseParticipant> courseParticipants
+    );
     @Query("""
             SELECT DISTINCT s FROM Schedule s
             LEFT JOIN s.course c

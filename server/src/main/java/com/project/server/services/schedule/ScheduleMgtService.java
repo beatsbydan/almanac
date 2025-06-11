@@ -13,7 +13,6 @@ import com.project.server.dtos.request.course.CourseParticipantResponse;
 import com.project.server.dtos.response.*;
 import com.project.server.enums.Status;
 import com.project.server.enums.Type;
-import com.project.server.exceptions.BadRequestException;
 import com.project.server.exceptions.DuplicateEntryException;
 import com.project.server.exceptions.NotFoundException;
 import com.project.server.exceptions.ScheduleUpsertException;
@@ -23,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -40,10 +40,12 @@ public class ScheduleMgtService {
     private final SuggestionService suggestionService;
     private final CourseParticipantService courseParticipantService;
 
+    @Transactional(rollbackFor = Exception.class)
     public MessageResponse createSchedule(ScheduleRequest request) throws NotFoundException, DuplicateEntryException, ScheduleUpsertException {
         return validateAndUpsertSchedule(request, null, Type.CREATE);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public MessageResponse updateSchedule(ScheduleRequest request, String code) throws DuplicateEntryException, ScheduleUpsertException, NotFoundException{
         return validateAndUpsertSchedule(request, code, Type.UPDATE);
     }
@@ -86,6 +88,10 @@ public class ScheduleMgtService {
     }
 
     private MessageResponse validateAndUpsertSchedule(ScheduleRequest request, String scheduleCode, Type type) throws DuplicateEntryException, ScheduleUpsertException, NotFoundException {
+        /*
+        * TODO: Optional but we can implement an algorithm to check if there's a schedule for a particular department before the new schedule to be created, the location of the classroom for the class and check it against the location for the new schedule to see if they're both on the same side or not. Notify users that a 15 minutes grace would be given so the class would be for 1hr:45mins to enable students get to the venue in time. This factors students into the system.
+        */
+
         TimeTable timeTable = timeTableService.getActiveTimeTable();
         if(timeTable.getCreationStatus() != Status.ENABLED) throw new ScheduleUpsertException("Schedule creation has not been enabled for this time table.");
 
@@ -111,20 +117,31 @@ public class ScheduleMgtService {
             if(scheduleCombinationService.isExistingCombination(
                     request.getRecurringDay(),
                     startTime,
+                    endTime,
                     classNames.get(i),
                     timeTable.getCode()
             )) throw new DuplicateEntryException("This schedule combination has been taken by another lecturer. Select another.");
         }
 
         if(Objects.equals(request.getRecurringDay(), "Wednesdays") && (startTime >= 10 && startTime <=12)) throw new ScheduleUpsertException("Classes aren't supposed to hold at this time on Wednesdays.");
-        if(course.getExpectedClassSize() > totalClassSize) throw new ScheduleUpsertException("Classroom(s) don't match the expected class size.");
+        if(course.getExpectedClassSize() > totalClassSize) throw new ScheduleUpsertException("Classroom(s) don't match the expected class size, consider changing venue(s).");
+
+        List<CourseParticipant> participants = course.getCourseParticipants();
+        if(scheduleService.hasScheduleAtTime(startTime, endTime, participants)){
+            boolean isShared = participants.size() > 1 || participants.getFirst().getDepartments().size() > 1;
+            String message = isShared ? "One or more department(s) taking your course have" : String.format("%s has", participants.getFirst().getDepartments().getFirst().getName());
+
+            throw new ScheduleUpsertException(message + " a class at this time.");
+        }
 
         Schedule schedule;
+        List<ScheduleCombination> scheduleCombinations = new ArrayList<>();
+
         if(type == Type.CREATE){
             if(scheduleCombinationService.hasScheduleForCourse(request.getCourseCode())) throw new DuplicateEntryException("Schedule for this course already exists.");
-            schedule = scheduleService.save(toCreateScheduleDbModel(staff, timeTable, course, classRooms, request.getRecurringDay(), timePeriod));
+            schedule = scheduleService.save(toCreateScheduleDbModel(staff, timeTable, course, classRooms, request.getRecurringDay(), startTime, endTime, timePeriod));
             for(int i = 0; i < locks.size(); i++){
-                scheduleCombinationService.save(toCreateScheduleCombinationDbModel(locks.get(i), request.getRecurringDay(), startTime, endTime,classNames.get(i), schedule));
+                scheduleCombinations.add(toCreateScheduleCombinationDbModel(locks.get(i), request.getRecurringDay(), startTime, endTime, classNames.get(i), schedule));
             }
         }
         else {
@@ -134,6 +151,8 @@ public class ScheduleMgtService {
             schedule.setCourse(course);
             schedule.setClassRooms(classRooms);
             schedule.setTimeTable(timeTable);
+            schedule.setStartTime(startTime);
+            schedule.setEndTime(endTime);
             schedule.setTimePeriod(timePeriod);
             schedule.setDay(request.getRecurringDay());
 
@@ -142,11 +161,14 @@ public class ScheduleMgtService {
             scheduleCombinationService.deleteAllBySchedule(scheduleCode);
 
             for(int i = 0; i < locks.size(); i++){
-                scheduleCombinationService.save(toCreateScheduleCombinationDbModel(locks.get(i), request.getRecurringDay(), startTime, endTime,classNames.get(i), schedule));
+                scheduleCombinations.add(toCreateScheduleCombinationDbModel(locks.get(i), request.getRecurringDay(), startTime, endTime,classNames.get(i), schedule));
             }
         }
 
+        scheduleCombinationService.save(scheduleCombinations);
+
         for (String lock : locks) {
+            log.info("Unlocking lock: {}", lock);
             redissonLockService.unlock(lock);
         }
 
@@ -190,12 +212,14 @@ public class ScheduleMgtService {
         return timeParams;
     }
 
-    private Schedule toCreateScheduleDbModel(AppUser staff, TimeTable timetable, Course course, List<ClassRoom> classrooms, String day, String timePeriod){
+    private Schedule toCreateScheduleDbModel(AppUser staff, TimeTable timetable, Course course, List<ClassRoom> classrooms, String day, int startTime, int endTime, String timePeriod){
         return Schedule.builder()
                 .appUser(staff)
                 .timeTable(timetable)
                 .course(course)
                 .classRooms(classrooms)
+                .startTime(startTime)
+                .endTime(endTime)
                 .timePeriod(timePeriod)
                 .day(day)
                 .build();

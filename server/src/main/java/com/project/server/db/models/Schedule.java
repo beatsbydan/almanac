@@ -1,6 +1,5 @@
 package com.project.server.db.models;
 
-import com.project.server.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,6 +14,10 @@ import java.util.List;
 @AllArgsConstructor
 public class Schedule extends BaseModel{
     private String day;
+
+    private Integer startTime;
+
+    private Integer endTime;
 
     private String timePeriod;
 
@@ -49,5 +52,15 @@ public class Schedule extends BaseModel{
             inverseJoinColumns = @JoinColumn(name = "classroom_id")
     )
     private List<ClassRoom> classRooms;
+
+    public int getStartTime(){
+        String[] timeSplit = this.getTimePeriod().split(" - ");
+        return Integer.parseInt(timeSplit[0].split(":00")[0]);
+    }
+
+    public int getEndTime(){
+        String[] timeSplit = this.getTimePeriod().split(" - ");
+        return Integer.parseInt(timeSplit[1].split(":00")[1]);
+    }
 
 }

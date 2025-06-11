@@ -15,10 +15,18 @@ import java.util.Optional;
 
 @Repository
 public interface ScheduleCombinationRepository extends JpaRepository<ScheduleCombination, Long> {
-    @Query("SELECT s FROM ScheduleCombination s WHERE s.day = :day AND :startTime < s.endTime AND s.classroomName = :className AND s.schedule.timeTable.code = :timetableCode")
+    @Query("""
+        SELECT s FROM ScheduleCombination s
+        WHERE s.day = :day
+        AND :startTime < s.endTime
+        AND :endTime > s.startTime
+        AND s.classroomName = :className
+        AND s.schedule.timeTable.code = :timetableCode
+    """)
     Optional<ScheduleCombination> findByCombination(
             @Param("day") String day,
             @Param("startTime") int startTime,
+            @Param("endTime") int endTime,
             @Param("className") String className,
             @Param("timetableCode") String timetableCode
     );

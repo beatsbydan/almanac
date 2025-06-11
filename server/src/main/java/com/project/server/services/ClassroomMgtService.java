@@ -67,7 +67,7 @@ public class ClassroomMgtService {
         List<ClassroomResponse> responses = new ArrayList<>();
 
         for(ClassRoom room : classRooms){
-            String college = room.getCollege() != null ? room.getCollege().getShortName() : "NONE";
+            String college = room.getCollege() != null ? room.getCollege().getShortName() : "NO COLLEGE";
             responses.add(ClassroomResponse.builder()
                             .className(room.getName())
                             .code(room.getCode())

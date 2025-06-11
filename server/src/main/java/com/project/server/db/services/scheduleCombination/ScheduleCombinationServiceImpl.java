@@ -17,13 +17,18 @@ public class ScheduleCombinationServiceImpl implements ScheduleCombinationServic
     private final ScheduleCombinationRepository repository;
 
     @Override
-    public boolean isExistingCombination(String day, int startTime, String className, String timetableCode) {
-        return repository.findByCombination(day, startTime, className, timetableCode).isPresent();
+    public boolean isExistingCombination(String day, int startTime, int endTime, String className, String timetableCode) {
+        return repository.findByCombination(day, startTime, endTime, className, timetableCode).isPresent();
     }
 
     @Override
     public void save(ScheduleCombination combination) {
         repository.save(combination);
+    }
+
+    @Override
+    public void save(List<ScheduleCombination> combinations) {
+        repository.saveAll(combinations);
     }
 
     @Override

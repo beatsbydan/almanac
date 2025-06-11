@@ -1,6 +1,7 @@
 package com.project.server.db.services.schedule;
 
 import com.project.server.db.models.AppUser;
+import com.project.server.db.models.CourseParticipant;
 import com.project.server.db.models.Schedule;
 import com.project.server.exceptions.NotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -14,4 +15,5 @@ public interface ScheduleService {
     Schedule getByCourse( String courseTitle) throws NotFoundException;
     List<Schedule> getByLecturer(AppUser lecturer);
     void deleteByCode(String code);
+    boolean hasScheduleAtTime(int startTime, int endTime, List<CourseParticipant> participants);
 }

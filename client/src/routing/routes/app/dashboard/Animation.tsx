@@ -68,7 +68,8 @@ const Animation:React.FC = () =>{
                             delay={0.2}
                         />
                         <h2 className="text-5xl text-white font-semibold">{events[index]?.course?.courseCodes?.join(", ")}</h2>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{events[index]?.time} - {events[index]?.classrooms?.map((room: GenericObjectType) => room?.className).join(", ")}</p>
+                        <h2 className="text-3xl text-gray-300 font-semibold">{events[index]?.day}</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{events[index]?.time} at {events[index]?.classrooms?.map((room: GenericObjectType) => room?.className).join(", ")}</p>
                     </motion.div>
                 </AnimatePresence>
             }
