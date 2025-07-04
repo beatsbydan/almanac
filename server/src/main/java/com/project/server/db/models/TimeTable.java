@@ -1,5 +1,6 @@
 package com.project.server.db.models;
 
+import com.project.server.enums.GenerationStage;
 import com.project.server.enums.Semester;
 import com.project.server.enums.Status;
 import jakarta.persistence.*;
@@ -20,7 +21,7 @@ public class TimeTable extends BaseModel{
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    private Status status = Status.PENDING_REPORT_GENERATION;
+    private Status status = Status.PENDING_GENERATION;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -28,6 +29,10 @@ public class TimeTable extends BaseModel{
 
     @OneToMany(mappedBy = "timeTable")
     private List<Schedule> schedules;
+
+    @OneToOne
+    @JoinColumn(name = "generation_tracker_id")
+    private GenerationTracker generationTracker;
 
     @Builder.Default
     private boolean active = true;

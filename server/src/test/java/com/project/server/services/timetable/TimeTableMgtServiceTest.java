@@ -15,6 +15,7 @@ import com.project.server.dtos.request.course.CourseRequest;
 import com.project.server.dtos.response.DocumentResponse;
 import com.project.server.dtos.response.MessageResponse;
 import com.project.server.dtos.response.TimeTableResponse;
+import com.project.server.enums.Status;
 import com.project.server.enums.Type;
 import com.project.server.services.*;
 import com.project.server.services.schedule.ScheduleMgtService;
@@ -93,6 +94,15 @@ class TimeTableMgtServiceTest extends BaseIntegrationTest {
     }
 
     @Test
+    @SneakyThrows
+    void should_initiate_generation(){
+        mgtService.changeScheduleCreationStatus(timeTable.getCode(), Status.PAUSED.name());
+        messageResponse = mgtService.initiateGeneration();
+        assertNotNull(messageResponse);
+    }
+
+    @Test
+    @SneakyThrows
     void getActiveTimeTable() {
         TimeTableResponse response = mgtService.getActiveTimeTable();
         assertNotNull(response);
@@ -102,7 +112,7 @@ class TimeTableMgtServiceTest extends BaseIntegrationTest {
     @SneakyThrows
     void generateTimeTable() {
         timeTable = timeTableService.getActiveTimeTable();
-        DocumentResponse response = mgtService.generateTimeTable(timeTable.getCode(), toUserSignUpRequest().getStaffId());
+        DocumentResponse response = mgtService.generateAndDownloadUserTimeTable(timeTable.getCode(), toUserSignUpRequest().getStaffId());
 
         assertNotNull(response);
     }

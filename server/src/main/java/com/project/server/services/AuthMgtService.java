@@ -15,6 +15,7 @@ import com.project.server.dtos.response.MessageResponse;
 import com.project.server.enums.Role;
 import com.project.server.enums.Status;
 import com.project.server.exceptions.*;
+import com.project.server.util.HelperUtil;
 import com.project.server.util.VariableUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -51,6 +52,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.project.server.util.VariableUtil.REFRESH_TOKEN;
+import static com.project.server.util.VariableUtil.RESET_TOKEN;
 
 @Service
 @RequiredArgsConstructor
@@ -137,7 +141,7 @@ public class AuthMgtService implements LogoutHandler {
         String accessToken = generateAccessToken(user);
         String refreshToken = generateRefreshToken(user);
 
-        setTokenCookie(httpResponse, refreshToken, VariableUtil.REFRESH_TOKEN, refreshTokenExpiration);
+        setTokenCookie(httpResponse, refreshToken, REFRESH_TOKEN, refreshTokenExpiration);
         return toAuthResponse(user, accessToken);
     }
 
@@ -154,13 +158,13 @@ public class AuthMgtService implements LogoutHandler {
         userService.save(user);
 
         String resetToken = generateResetToken(user);
-        setTokenCookie(response, resetToken, VariableUtil.RESET_TOKEN, resetTokenExpiration);
+        setTokenCookie(response, resetToken, RESET_TOKEN, resetTokenExpiration);
 
         return new MessageResponse("Check your mail for a one time password.");
     }
 
     public MessageResponse verifyOtp(VerifyOtpRequest request, HttpServletRequest httpRequest) throws Exception {
-        String token = getTokenFromCookie(httpRequest.getCookies(), VariableUtil.RESET_TOKEN, "Unable to verify, please try again.");
+        String token = getTokenFromCookie(httpRequest.getCookies(), RESET_TOKEN, "Unable to verify, please try again.");
         String username;
 
         try{
@@ -184,7 +188,7 @@ public class AuthMgtService implements LogoutHandler {
     }
 
     public MessageResponse resetPassword(ResetPasswordRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws Exception {
-        String token = getTokenFromCookie(httpRequest.getCookies(), VariableUtil.RESET_TOKEN, "Unable to verify, please try again.");
+        String token = getTokenFromCookie(httpRequest.getCookies(), RESET_TOKEN, "Unable to verify, please try again.");
         String username;
 
         try{
@@ -209,7 +213,7 @@ public class AuthMgtService implements LogoutHandler {
     }
 
     public AuthResponse refresh(HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws ForbiddenException {
-        String token = getTokenFromCookie(httpRequest.getCookies(), VariableUtil.REFRESH_TOKEN, "Session Expired, Please Log in.");
+        String token = getTokenFromCookie(httpRequest.getCookies(), REFRESH_TOKEN, "Session Expired, Please Log in.");
 
         String username;
         AppUser user;
@@ -379,6 +383,7 @@ public class AuthMgtService implements LogoutHandler {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.LECTURER)
                 .phone(request.getPhone())
+                .timeTableFileName(HelperUtil.generateStaffFileName(request.getStaffId().toUpperCase()))
                 .name(request.getName())
                 .build();
     }
@@ -388,6 +393,7 @@ public class AuthMgtService implements LogoutHandler {
                 .userEmail(request.getStudentEmail())
                 .department(department)
                 .level(level)
+                .timeTableFileName(HelperUtil.generateStudentFileName(department.getName(), level.getLevel()))
                 .status(Status.ACTIVATED)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.STUDENT)
@@ -403,6 +409,7 @@ public class AuthMgtService implements LogoutHandler {
                 .department(department)
                 .level(level)
                 .role(user.getRole().name())
+                .timeTableFileName(user.getTimeTableFileName())
                 .token(token)
                 .build();
     }

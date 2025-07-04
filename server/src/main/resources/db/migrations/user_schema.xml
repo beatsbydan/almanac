@@ -27,6 +27,7 @@
             <column name="password" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
+            <column name="time_table_file_name" type="VARCHAR(255)"/>
             <column name="name" type="VARCHAR(255)"/>
             <column name="phone" type="VARCHAR(100)"/>
             <column name="department_id" type="BIGINT">

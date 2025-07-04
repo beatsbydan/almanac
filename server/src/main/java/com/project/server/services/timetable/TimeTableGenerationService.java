@@ -11,10 +11,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.FontFamily;
 import org.apache.poi.xwpf.usermodel.*;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblWidth;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STTblWidth;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.math.BigInteger;
 import java.util.*;
+
+import static com.project.server.util.HelperUtil.createTextRun;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +38,6 @@ public class TimeTableGenerationService {
         if(schedules.isEmpty()) throw new TimeTableGenerationException("You have no schedules in the current timetable.");
 
         byte[] bytesArr;
-        String fileName;
 
         try (XWPFDocument document = new XWPFDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream())
@@ -44,8 +48,6 @@ public class TimeTableGenerationService {
             titleRun.setBold(true);
             titleRun.setFontSize(20);
             titleRun.setFontFamily(String.valueOf(FontFamily.ROMAN));
-
-            fileName = generateFileName(isStudent, timeTable, user);
 
             if (isStudent) addStudentHeadings(document, user);
             else addLecturerHeadings(document, user);
@@ -63,7 +65,7 @@ public class TimeTableGenerationService {
             throw new TimeTableGenerationException("Failed to generate timetable");
         }
 
-        return new DocumentResponse(bytesArr, fileName);
+        return new DocumentResponse(bytesArr, user.getTimeTableFileName());
     }
 
     private Map<String, List<Schedule>> groupAndSortSchedules(List<Schedule> schedules){
@@ -96,11 +98,14 @@ public class TimeTableGenerationService {
         dayRun.setText(day);
 
         int tableRows = schedules.size() + 1;
-        XWPFTable table = document.createTable(tableRows, isStudent ? 7 : 5);
+        int tableCols = isStudent ? 7 : 5;
+        XWPFTable table = document.createTable(tableRows, tableCols);
+
+        CTTblWidth width = table.getCTTbl().addNewTblPr().addNewTblW();
+        width.setType(STTblWidth.PCT);
+        width.setW(BigInteger.valueOf(5000));
 
         table.setTableAlignment(TableRowAlign.CENTER);
-        table.setWidth(800);
-        table.setWidthType(TableWidthType.PCT);
 
         table.getRow(0).getCell(0).setText("S/N");
         table.getRow(0).getCell(1).setText("COURSE TITLE");
@@ -155,17 +160,5 @@ public class TimeTableGenerationService {
         levelRun.setText(String.format("%s level", student.getLevel().getLevel()));
         levelRun.setItalic(true);
         levelRun.setFontFamily(String.valueOf(FontFamily.ROMAN));
-    }
-
-    private String generateFileName(boolean isStudent, TimeTable timeTable, AppUser user){
-        String fileNature = isStudent ? user.getDepartment().getName() + user.getLevel().getLevel() : user.getUserId();
-        return String.format("BUI_%s_%s_semester_%s_timetable", timeTable.getSession(), timeTable.getSemester(), fileNature);
-    }
-
-    private XWPFRun createTextRun(XWPFDocument document){
-        XWPFParagraph paragraph = document.createParagraph();
-        paragraph.setAlignment(ParagraphAlignment.CENTER);
-
-        return paragraph.createRun();
     }
 }

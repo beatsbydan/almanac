@@ -23,6 +23,13 @@
             <column name="status" type="VARCHAR(100)">
                 <constraints nullable="false"/>
             </column>
+            <column name="generation_tracker_id" type="BIGINT">
+                <constraints
+                    foreignKeyName="fk_timetable_on_generation_tracker"
+                    referencedTableName="generation_trackers"
+                    referencedColumnNames="id"
+                />
+            </column>
             <column name="creation_status" type="VARCHAR(100)">
                 <constraints nullable="false"/>
             </column>

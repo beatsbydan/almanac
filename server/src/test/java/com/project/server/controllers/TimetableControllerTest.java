@@ -89,6 +89,26 @@ class TimetableControllerTest extends BaseIntegrationTest {
 
     @Test
     @WithMockUser(roles = {"ADMINISTRATOR"})
+    void should_initiate_generation_SUCCESS() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/timetables/initiate-generation")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = {"ADMINISTRATOR"})
+    void should_initiate_generation_FAILURE_NOT_FOUND() throws Exception {
+        doThrow(new ScheduleUpsertException("Timetable not found"))
+                .when(timeTableMgtService).initiateGeneration();
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/timetables/initiate-generation")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = {"ADMINISTRATOR"})
     void should_change_schedule_creation_status_SUCCESS() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/timetables/123")
                         .param("status", "ENABLED")
@@ -119,9 +139,9 @@ class TimetableControllerTest extends BaseIntegrationTest {
 
     @Test
     void should_download_timetable_SUCCESS() throws Exception {
-        when(timeTableMgtService.generateTimeTable(any(String.class), any(String.class)))
+        when(timeTableMgtService.generateAndDownloadUserTimeTable(any(String.class), any(String.class)))
                 .thenReturn(new DocumentResponse(objectMapper.writeValueAsBytes(""), "filename"));
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/timetables/download/123")
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/timetables/download/user/123")
                         .param("userId", "userId")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
@@ -131,8 +151,8 @@ class TimetableControllerTest extends BaseIntegrationTest {
     @Test
     void should_download_timetable_FAILURE_NOT_FOUND() throws Exception {
         doThrow(new NotFoundException("Timetable does not exist"))
-                .when(timeTableMgtService).generateTimeTable(any(String.class), any(String.class));
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/timetables/download/123")
+                .when(timeTableMgtService).generateAndDownloadUserTimeTable(any(String.class), any(String.class));
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/timetables/download/user/123")
                         .param("userId", "userId")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
@@ -142,8 +162,8 @@ class TimetableControllerTest extends BaseIntegrationTest {
     @Test
     void should_download_timetable_FAILURE_GENERATION() throws Exception {
         doThrow(new TimeTableGenerationException("Bad Request"))
-                .when(timeTableMgtService).generateTimeTable(any(String.class), any(String.class));
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/timetables/download/123")
+                .when(timeTableMgtService).generateAndDownloadUserTimeTable(any(String.class), any(String.class));
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/timetables/download/user/123")
                         .param("userId", "userId")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())

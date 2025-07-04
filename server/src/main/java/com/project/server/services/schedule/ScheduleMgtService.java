@@ -127,7 +127,7 @@ public class ScheduleMgtService {
         if(course.getExpectedClassSize() > totalClassSize) throw new ScheduleUpsertException("Classroom(s) don't match the expected class size, consider changing venue(s).");
 
         List<CourseParticipant> participants = course.getCourseParticipants();
-        if(scheduleService.hasScheduleAtTime(startTime, endTime, participants)){
+        if(scheduleService.hasScheduleAtTime(startTime, endTime, participants, request.getRecurringDay())){
             boolean isShared = participants.size() > 1 || participants.getFirst().getDepartments().size() > 1;
             String message = isShared ? "One or more department(s) taking your course have" : String.format("%s has", participants.getFirst().getDepartments().getFirst().getName());
 
@@ -168,7 +168,6 @@ public class ScheduleMgtService {
         scheduleCombinationService.save(scheduleCombinations);
 
         for (String lock : locks) {
-            log.info("Unlocking lock: {}", lock);
             redissonLockService.unlock(lock);
         }
 
@@ -273,7 +272,7 @@ public class ScheduleMgtService {
                  .general(course.isGeneral())
                  .expectedClassSize(course.getExpectedClassSize().toString())
                  .courseCodes(courseCodesResponse)
-                .courseParticipants(courseParticipantResponses)
+                 .courseParticipants(courseParticipantResponses)
                  .build();
     }
 

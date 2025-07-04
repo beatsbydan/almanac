@@ -53,6 +53,9 @@ public class Schedule extends BaseModel{
     )
     private List<ClassRoom> classRooms;
 
+    @Builder.Default
+    private boolean processedForGeneration = false;
+
     public int getStartTime(){
         String[] timeSplit = this.getTimePeriod().split(" - ");
         return Integer.parseInt(timeSplit[0].split(":00")[0]);
@@ -60,7 +63,7 @@ public class Schedule extends BaseModel{
 
     public int getEndTime(){
         String[] timeSplit = this.getTimePeriod().split(" - ");
-        return Integer.parseInt(timeSplit[1].split(":00")[1]);
+        return Integer.parseInt(timeSplit[1].split(":00")[0]);
     }
 
 }

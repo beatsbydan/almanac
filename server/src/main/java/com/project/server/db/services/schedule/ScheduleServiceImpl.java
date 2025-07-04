@@ -6,8 +6,13 @@ import com.project.server.db.models.Schedule;
 import com.project.server.db.repositories.ScheduleRepository;
 import com.project.server.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -18,6 +23,11 @@ public class ScheduleServiceImpl implements ScheduleService{
     @Override
     public Schedule save(Schedule schedule) {
         return repository.save(schedule);
+    }
+
+    @Override
+    public void saveAll(List<Schedule> schedules) {
+        repository.saveAll(schedules);
     }
 
     @Override
@@ -44,12 +54,52 @@ public class ScheduleServiceImpl implements ScheduleService{
     }
 
     @Override
+    public Page<Schedule> getUnprocessedUniversityWideSchedules(Pageable pageable) {
+        return getUnprocessedUniversityWideSchedulesWithDetails(pageable);
+    }
+
+    @Override
+    public Page<Schedule> getUnprocessedSchedulesByCollege(String college, Pageable pageable) {
+        return getUnprocessedSchedulesWithDetailsByCollege(college, pageable);
+    }
+
+    @Override
     public void deleteByCode(String code) {
         repository.deleteByCode(code);
     }
 
     @Override
-    public boolean hasScheduleAtTime(int startTime, int endTime, List<CourseParticipant> participants) {
-        return !repository.findConflictingSchedules(startTime, endTime, participants).isEmpty();
+    public boolean hasScheduleAtTime(int startTime, int endTime, List<CourseParticipant> participants, String day) {
+        return !repository.findConflictingSchedules(startTime, endTime, participants, day).isEmpty();
+    }
+
+    public Page<Schedule> getUnprocessedSchedulesWithDetailsByCollege(String college, Pageable pageable) {
+        Page<Long> scheduleIdsPage = repository.findUnprocessedScheduleIdsByCollege(college, pageable);
+
+        List<Schedule> schedules;
+
+        if (scheduleIdsPage.isEmpty()) {
+            schedules = new ArrayList<>();
+        }
+        else {
+            schedules = repository.fetchUnprocessedSchedulesWithDetailsByCollegeByIds(scheduleIdsPage.getContent());
+        }
+
+        return new PageImpl<>(schedules, pageable, scheduleIdsPage.getTotalElements());
+    }
+
+    public Page<Schedule> getUnprocessedUniversityWideSchedulesWithDetails(Pageable pageable) {
+        Page<Long> scheduleIdsPage = repository.findUnprocessedUniversityWideScheduleIds(pageable);
+
+        List<Schedule> schedules;
+
+        if (scheduleIdsPage.isEmpty()) {
+            schedules = new ArrayList<>();
+        }
+        else {
+            schedules = repository.fetchUnprocessedUniversityWideSchedulesByIds(scheduleIdsPage.getContent());
+        }
+
+        return new PageImpl<>(schedules, pageable, scheduleIdsPage.getTotalElements());
     }
 }

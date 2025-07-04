@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,7 +21,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 @RestController
 @RequestMapping("/api/v1/timetables")
@@ -50,6 +53,12 @@ public class TimetableController {
         return mgtService.changeScheduleCreationStatus(code, status);
     }
 
+    @PutMapping("/initiate-generation")
+    @PreAuthorize(AuthorityUtil.ADMINISTRATOR)
+    public MessageResponse initiateGeneration() throws ScheduleUpsertException {
+        return mgtService.initiateGeneration();
+    }
+
     @PutMapping("/deactivate")
     @PreAuthorize(AuthorityUtil.ADMINISTRATOR)
     public MessageResponse deactivate(){
@@ -61,24 +70,35 @@ public class TimetableController {
         return mgtService.getActiveTimeTable();
     }
 
-    @GetMapping("/download/{code}")
-    public ResponseEntity<byte[]> download(
+    @GetMapping("/download/user/{code}")
+    public ResponseEntity<byte[]> downloadUserTimeTable(
             @PathVariable String code,
             @RequestParam(name = "userId") String userId
     ) throws NotFoundException, TimeTableGenerationException {
-        DocumentResponse documentResponse = mgtService.generateTimeTable(code, userId);
-
-        String fileName = documentResponse.getFileName();
-        if (!fileName.endsWith(".docx")) {
-            fileName += ".docx";
-        }
+        DocumentResponse documentResponse = mgtService.generateAndDownloadUserTimeTable(code, userId);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + documentResponse.getFileName() + "\"");
 
         return ResponseEntity.ok()
                 .headers(headers)
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 .body(documentResponse.getBytesArr());
+    }
+
+    @GetMapping("/download/general")
+    @PreAuthorize(AuthorityUtil.ADMINISTRATOR)
+    public ResponseEntity<FileSystemResource> downloadGeneralTimeTable() throws NotFoundException, IOException, ScheduleUpsertException, BadRequestException {
+        FileSystemResource resource = mgtService.downloadGeneralTimeTable();
+        File file = resource.getFile();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_TYPE, Files.probeContentType(file.toPath()));
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(file.length())
+                .body(resource);
     }
 }

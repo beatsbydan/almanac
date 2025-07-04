@@ -29,7 +29,9 @@ const timeTableRoutes = {
     update: `${baseRoute}${timeTableBaseRoute}/update/`,
     change_status: `${baseRoute}${timeTableBaseRoute}/`,
     get_active: `${baseRoute}${timeTableBaseRoute}/active`,
-    download: `${baseRoute}${timeTableBaseRoute}/download/`,
+    user_download: `${baseRoute}${timeTableBaseRoute}/download/user/`,
+    general_download: `${baseRoute}${timeTableBaseRoute}/download/general`,
+    initiate_generation: `${baseRoute}${timeTableBaseRoute}/initiate-generation`,
     deactivate: `${baseRoute}${timeTableBaseRoute}/deactivate`
 }
 

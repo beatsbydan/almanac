@@ -14,7 +14,13 @@ public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
     Optional<ClassRoom> findByName(String name);
     Optional<ClassRoom> findByCode(String code);
 
-    @Query("SELECT c FROM ClassRoom c WHERE c.college.name = :college OR c.college.shortName = :college")
+    @Query("""
+            SELECT c FROM ClassRoom c
+            LEFT JOIN FETCH c.college clg
+            LEFT JOIN FETCH clg.departments d
+            WHERE clg.name = :college
+            OR clg.shortName = :college
+    """)
     List<ClassRoom> findAllByCollege(@Param("college") String college);
 
     @Query("SELECT c FROM ClassRoom c WHERE c.college.shortName = :college")

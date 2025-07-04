@@ -6,6 +6,7 @@
 >
     <include file="classpath:db/migrations/shedlock_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/college_schema.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/generation_tracker_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/department_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/timetable_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/otp_schema.xml" relativeToChangelogFile="false"/>

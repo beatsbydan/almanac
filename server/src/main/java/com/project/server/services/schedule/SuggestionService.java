@@ -52,14 +52,17 @@ public class SuggestionService {
             String randomStartTime = (startTime != null) ? startTime : VariableUtil.TIMES.get(random.nextInt(VariableUtil.TIMES.size()));
             String randomDuration = (duration != null) ? duration : VariableUtil.DURATIONS.get(random.nextInt(VariableUtil.DURATIONS.size()));
 
+            int startTimeInt = Integer.parseInt(Arrays.stream(randomStartTime.split(":00")).toList().getFirst());
+            int endTimeInt = Integer.parseInt(Arrays.stream(randomDuration.split(" ")).toList().getFirst()) + startTimeInt;
+
             ClassRoom randomClassRoom = rooms.get(random.nextInt(rooms.size()));
 
             Suggestion suggestion = toSuggestion(randomDay, randomStartTime, randomDuration, randomClassRoom);
 
             if((!scheduleCombinationService.isExistingCombination(
                     randomDay,
-                    Integer.parseInt(Arrays.stream(randomStartTime.split(":00")).toList().getFirst()),
-                    Integer.parseInt(Arrays.stream(randomStartTime.split(":00")).toList().getLast()),
+                    startTimeInt,
+                    endTimeInt,
                     randomClassRoom.getName(),
                     timeTable.getCode()
             )) && !suggestions.contains(suggestion)) suggestions.add(suggestion);

@@ -26,6 +26,9 @@
             <column name="day" type="VARCHAR(100)">
                 <constraints nullable="false"/>
             </column>
+            <column name="processed_for_generation" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
             <column name="time_period" type="VARCHAR(100)">
                 <constraints nullable="false"/>
             </column>

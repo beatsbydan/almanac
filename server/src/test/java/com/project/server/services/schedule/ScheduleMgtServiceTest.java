@@ -131,7 +131,7 @@ class ScheduleMgtServiceTest extends BaseIntegrationTest {
                 .userId("staffId")
                 .courseCode(code)
                 .classroomCodes(classroomCodes)
-                .recurringDay("Tuesday")
+                .recurringDay("Sunday")
                 .startTime("8:00am")
                 .timeDuration("2")
                 .build();
@@ -143,7 +143,7 @@ class ScheduleMgtServiceTest extends BaseIntegrationTest {
                 .courseCode(code)
                 .classroomCodes(classroomCodes)
                 .recurringDay("Sunday")
-                .startTime("8:00am")
+                .startTime("14:00pm")
                 .timeDuration("2")
                 .build();
     }

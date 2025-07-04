@@ -29,6 +29,8 @@ public class AppUser extends BaseModel implements UserDetails {
 
     private String phone;
 
+    private String timeTableFileName;
+
     @OneToOne
     @JoinColumn(name = "department_id", referencedColumnName = "id")
     private Department department;

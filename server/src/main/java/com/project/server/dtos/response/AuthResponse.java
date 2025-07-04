@@ -17,4 +17,6 @@ public class AuthResponse {
     private String level;
 
     private String token;
+
+    private String timeTableFileName;
 }
