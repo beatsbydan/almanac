@@ -18,7 +18,7 @@ public class CourseServiceImpl implements CourseService{
 
     @Override
     public Course findByCode(String code) throws NotFoundException {
-        return repository.findByCode(code).orElseThrow(()-> new NotFoundException("This course does not exist."));
+        return repository.findByCodeWithParticipants(code).orElseThrow(()-> new NotFoundException("This course does not exist."));
     }
 
     @Override

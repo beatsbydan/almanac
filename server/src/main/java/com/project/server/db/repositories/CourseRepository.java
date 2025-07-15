@@ -16,6 +16,10 @@ import java.util.Optional;
 public interface CourseRepository extends JpaRepository<Course, Long> {
     Optional<Course> findByCourseTitle(String courseTitle);
     Optional<Course> findByCode(String code);
+
+    @Query("SELECT c FROM Course c LEFT JOIN FETCH c.courseParticipants WHERE c.code = :code")
+    Optional<Course> findByCodeWithParticipants(@Param("code") String code);
+
     @Query("""
         SELECT c FROM Course c
         JOIN c.courseCodes cc

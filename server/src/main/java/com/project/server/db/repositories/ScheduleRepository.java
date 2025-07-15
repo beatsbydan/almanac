@@ -18,17 +18,17 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     Schedule findByCode(String code);
     @Query("""
             SELECT DISTINCT s FROM Schedule s
-            JOIN s.course c
-            JOIN c.courseParticipants cp
+            LEFT JOIN s.course c
+            LEFT JOIN c.courseParticipants cp
             WHERE :startTime < s.endTime
             AND :endTime > s.startTime
             AND s.day = :day
-            AND cp IN :courseParticipants
+            AND cp.id IN :courseParticipantIds
             """)
     List<Schedule> findConflictingSchedules(
             @Param("startTime") int startTime,
             @Param("endTime") int endTime,
-            @Param("courseParticipants") List<CourseParticipant> courseParticipants,
+            @Param("courseParticipantIds") List<Long> courseParticipantIds,
             @Param("day") String day
     );
     @Query("""

@@ -1,11 +1,9 @@
-package com.project.server.db.services.courseCodes;
+package com.project.server.db.services.courseCode;
 
 import com.project.server.db.models.Course;
 import com.project.server.db.models.CourseCode;
-import com.project.server.exceptions.NotFoundException;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface CourseCodeService {
     void createCodes(List<CourseCode> codes);

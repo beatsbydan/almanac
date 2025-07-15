@@ -17,7 +17,7 @@ public class TimeTableGenerationCron {
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
     private final TimeTableGenerationCronService cronService;
 
-    @Scheduled(cron = "${project.generation.cron.exp:* */5 * * * *}")
+    @Scheduled(cron = "${project.generation.cron.exp:* */2 * * * *}")
     @SchedulerLock(
             name = "TimeTable_Generation_Cron",
             lockAtLeastFor = "${project.cron.min.lock:PT5M}",

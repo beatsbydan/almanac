@@ -122,7 +122,7 @@ public class TimeTableMgtService {
                 .session(session)
                 .creationStartDate(HelperUtil.parseDate(request.getCreationStartDate()))
                 .creationEndDate(HelperUtil.parseDate(request.getCreationEndDate()))
-                .fileName(HelperUtil.generateFilename(request.getSession(), request.getSemester()))
+                .fileName(HelperUtil.generateFilename(session, request.getSemester()))
                 .semester(Semester.valueOf(request.getSemester()))
                 .build();
     }

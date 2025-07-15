@@ -1,7 +1,7 @@
 package com.project.server.services.timetable;
 
 import com.project.server.db.models.*;
-import com.project.server.db.services.courseCodes.CourseCodeService;
+import com.project.server.db.services.courseCode.CourseCodeService;
 import com.project.server.db.services.schedule.ScheduleService;
 import com.project.server.dtos.response.DocumentResponse;
 import com.project.server.enums.Role;

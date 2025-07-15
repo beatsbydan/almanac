@@ -2,7 +2,7 @@ package com.project.server.services;
 
 import com.project.server.db.models.*;
 import com.project.server.db.services.course.CourseService;
-import com.project.server.db.services.courseCodes.CourseCodeService;
+import com.project.server.db.services.courseCode.CourseCodeService;
 import com.project.server.db.services.courseParticipant.CourseParticipantService;
 import com.project.server.db.services.department.DepartmentService;
 import com.project.server.db.services.level.LevelService;

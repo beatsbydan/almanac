@@ -75,14 +75,15 @@ const Login:React.FC = () => {
             )
 
             if(success){
-                const { role, userEmail, userId, token, level, department } = responseBody!.result
+                const { role, userEmail, userId, token, level, department, timeTableFileName } = responseBody!.result
                 const payload = {
                     newRole: role,
                     newUser: {
                         id: userId,
                         email: userEmail,
                         level: level,
-                        department: department
+                        department: department,
+                        timeTableFileName: timeTableFileName
                     },
                     newToken: token 
                 }

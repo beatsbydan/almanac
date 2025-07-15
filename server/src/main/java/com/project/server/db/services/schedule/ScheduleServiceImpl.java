@@ -6,6 +6,7 @@ import com.project.server.db.models.Schedule;
 import com.project.server.db.repositories.ScheduleRepository;
 import com.project.server.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ScheduleServiceImpl implements ScheduleService{
     private final ScheduleRepository repository;
 
@@ -70,7 +72,12 @@ public class ScheduleServiceImpl implements ScheduleService{
 
     @Override
     public boolean hasScheduleAtTime(int startTime, int endTime, List<CourseParticipant> participants, String day) {
-        return !repository.findConflictingSchedules(startTime, endTime, participants, day).isEmpty();
+        log.info("Checking startTime: {}, endTime: {}, day: {}", startTime, endTime, day);
+        List<Long> participantIds = participants.stream().map(CourseParticipant::getId).toList();
+
+        List<Schedule> schedules = repository.findConflictingSchedules(startTime, endTime, participantIds, day);
+        log.info("found:{} schedules", schedules.size());
+        return !schedules.isEmpty();
     }
 
     public Page<Schedule> getUnprocessedSchedulesWithDetailsByCollege(String college, Pageable pageable) {

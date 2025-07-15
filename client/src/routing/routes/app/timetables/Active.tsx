@@ -54,7 +54,7 @@ const Active:React.FC<ActiveTimeTableType> = ({timetable, openModal, refetchMeth
             alertSuccess(responseBody!.result.message)
         }   
         if(error){
-            alertFailure(error!.message)
+            alertFailure(error!.result.message)
         }
         setProcessingGeneration(false)
     }, [])
@@ -98,7 +98,7 @@ const Active:React.FC<ActiveTimeTableType> = ({timetable, openModal, refetchMeth
             alertSuccess("Timetable Downloaded!")
         }   
         if(error){
-            alertFailure(error!.message)
+            alertFailure(error!.result.message)
         }
         setProcessingGeneralDownload(false)
     }, [])

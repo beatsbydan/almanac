@@ -1,9 +1,8 @@
-package com.project.server.db.services.courseCodes;
+package com.project.server.db.services.courseCode;
 
 import com.project.server.db.models.Course;
 import com.project.server.db.models.CourseCode;
 import com.project.server.db.repositories.CourseCodeRepository;
-import com.project.server.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

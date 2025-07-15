@@ -3,7 +3,7 @@ package com.project.server.cron.services;
 import com.project.server.db.models.*;
 import com.project.server.db.services.classroom.ClassRoomService;
 import com.project.server.db.services.college.CollegeService;
-import com.project.server.db.services.courseCodes.CourseCodeService;
+import com.project.server.db.services.courseCode.CourseCodeService;
 import com.project.server.db.services.generationTracker.GenerationTrackerService;
 import com.project.server.db.services.schedule.ScheduleService;
 import com.project.server.db.services.timetable.TimeTableService;
@@ -13,18 +13,15 @@ import com.project.server.exceptions.TimeTableGenerationException;
 import com.project.server.util.VariableUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.FontFamily;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -108,7 +105,16 @@ public class TimeTableGenerationCronService {
             XWPFDocument timetable;
 
             File timetableDir = new File(TIME_TABLE_DIRECTORY);
-            if(!timetableDir.exists()) timetableDir.mkdirs();
+
+            if (!timetableDir.exists()) {
+                boolean created = timetableDir.mkdirs();
+                if (!created) {
+                    throw new TimeTableGenerationException("Failed to create timetable directory: " + TIME_TABLE_DIRECTORY);
+                }
+            }
+            if (!timetableDir.isDirectory()) {
+                throw new TimeTableGenerationException("Timetable path exists but is not a directory: " + TIME_TABLE_DIRECTORY);
+            }
 
             log.info("Successfully upserted root directory: {}", TIME_TABLE_DIRECTORY);
 
