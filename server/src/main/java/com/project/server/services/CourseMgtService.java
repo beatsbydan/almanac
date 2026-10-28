@@ -148,6 +148,7 @@ public class CourseMgtService {
 
     private List<OrgUnit> getAllDepartments(List<String> departments) throws NotFoundException {
         List<OrgUnit> departmentList = new ArrayList<>();
+        if (departments == null) return departmentList;
 
         for(String departmentName : departments){
             departmentList.add(orgUnitService.getChildByName(departmentName));

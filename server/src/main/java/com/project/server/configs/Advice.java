@@ -5,6 +5,7 @@ import com.project.server.dtos.api.ApiResponse;
 import com.project.server.exceptions.*;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -65,6 +66,33 @@ public class Advice implements ResponseBodyAdvice<Object> {
     @ExceptionHandler(value = HttpMessageNotReadableException.class)
     public ResponseEntity<Object> handleMessageNotReadableException(HttpMessageNotReadableException e) {
         return new ResponseEntity<>(buildError("Request body is missing or malformed.", HttpStatus.BAD_REQUEST), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Found via input fuzzing: several request fields are declared String rather than numeric
+     * (CourseRequest.expectedClassSize/courseUnit, ScheduleRequest.timeDuration, the hour portion
+     * of startTime) specifically because they were never meant to carry format validation of their
+     * own — Bean Validation can only enforce @NotBlank on them. A non-numeric value reaches a bare
+     * Integer.parseInt deep in the service layer and, without this, fell through to the generic
+     * 500 below for what is, like the exceptions above it, a client input problem, not a server
+     * fault.
+     */
+    @ExceptionHandler(value = NumberFormatException.class)
+    public ResponseEntity<Object> handleNumberFormatException(NumberFormatException e) {
+        return new ResponseEntity<>(buildError("One or more numeric fields contain an invalid value.", HttpStatus.BAD_REQUEST), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Found via input fuzzing: an oversized string (e.g. a 5000-character course title) has no
+     * Bean Validation @Size limit and reaches the database uncaught, where the column's own
+     * varchar(255) bound rejects it. The generic handler's own comment already warns that a
+     * DataIntegrityViolationException's message can leak table/column/constraint names — this
+     * closes that gap with a 400 instead of letting it fall through to the generic 500.
+     */
+    @ExceptionHandler(value = DataIntegrityViolationException.class)
+    public ResponseEntity<Object> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
+        log.warn("Data integrity violation: {}", e.getMessage());
+        return new ResponseEntity<>(buildError("One or more fields exceed their allowed length or violate a data constraint.", HttpStatus.BAD_REQUEST), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(value = NotFoundException.class)

@@ -75,6 +75,36 @@ class CourseMgtServiceTest extends BaseIntegrationTest {
         assertNotNull(response);
     }
 
+    /**
+     * Found via input fuzzing: CourseParticipantRequest.departments has no @NotEmpty/@NotNull (and
+     * isn't even cascade-validated, since CourseRequest.courseParticipants lacks @Valid), so a
+     * null departments list reached a bare for-each in getAllDepartments() and threw an NPE that
+     * surfaced as a raw 500. A participant with no department scope is a legitimate case (parallel
+     * to a classroom with no college meaning "university-wide") — it should create with zero org
+     * units for that participant, not crash.
+     */
+    @Test
+    @SneakyThrows
+    void should_createCourse_whenParticipantDepartmentsIsNull() {
+        List<CourseParticipantRequest> participantRequests = new ArrayList<>();
+        participantRequests.add(CourseParticipantRequest.builder().level("100").departments(null).build());
+        CourseRequest request = CourseRequest.builder()
+                .courseTitle("Title With Null Departments")
+                .courseUnit("0")
+                .general(false)
+                .shared(false)
+                .batched(true)
+                .courseParticipants(participantRequests)
+                .courseCodes(List.of("NDEP1"))
+                .expectedClassSize("500")
+                .build();
+
+        assertNotNull(mgtService.upsertCourse(request, Type.CREATE, null));
+
+        SchedulableUnit course = courseService.getByTitle(request.getCourseTitle());
+        assertTrue(course.getParticipants().getFirst().getOrgUnits().isEmpty());
+    }
+
     private CourseRequest toCourseRequest(){
         List<CourseParticipantRequest> participantRequests = new ArrayList<>();
         participantRequests.add(CourseParticipantRequest.builder().level("100").departments(List.of("department")).build());
