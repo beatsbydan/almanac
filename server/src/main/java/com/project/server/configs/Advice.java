@@ -4,7 +4,10 @@ import com.project.server.dtos.api.ApiError;
 import com.project.server.dtos.api.ApiResponse;
 import com.project.server.exceptions.*;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
@@ -17,9 +20,27 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @ControllerAdvice
+@Slf4j
 public class Advice implements ResponseBodyAdvice<Object> {
+    /**
+     * Every @Valid-annotated request body in the API throws this on a failed field constraint —
+     * without a handler for it, it fell through to handleGenericException below and came back as
+     * a 500 with Spring's internal "Validation failed for argument..." message, rather than the
+     * 400 + field-level breakdown ApiError.errors was already shaped for but nothing populated.
+     */
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException e) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError error : e.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(error.getField(), error.getDefaultMessage());
+        }
+        return new ResponseEntity<>(buildError("Validation failed.", HttpStatus.BAD_REQUEST, fieldErrors), HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(value = NotFoundException.class)
     public ResponseEntity<Object> handleNotFoundException(NotFoundException e){
         return new ResponseEntity<>(buildError(e.getMessage(), HttpStatus.NOT_FOUND), HttpStatus.NOT_FOUND);
@@ -71,9 +92,17 @@ public class Advice implements ResponseBodyAdvice<Object> {
         return new ResponseEntity<>(buildError(e.getMessage(), HttpStatus.BAD_REQUEST), HttpStatus.BAD_REQUEST);
     }
 
+    /**
+     * Catches whatever none of the specific handlers above anticipated. Returning e.getMessage()
+     * straight to the client (the previous behavior) leaks internals a caller has no business
+     * seeing — a DataIntegrityViolationException's message can include table/column/constraint
+     * names, for one. Log the real exception (tenant-tagged, see TenantContext) and return a
+     * message safe for any caller instead.
+     */
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<Object> handleGenericException(Exception e){
-        return new ResponseEntity<>(buildError(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR), HttpStatus.INTERNAL_SERVER_ERROR);
+        log.error("Unhandled exception: {}", e.getMessage(), e);
+        return new ResponseEntity<>(buildError("An unexpected error occurred.", HttpStatus.INTERNAL_SERVER_ERROR), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
 
@@ -113,5 +142,9 @@ public class Advice implements ResponseBodyAdvice<Object> {
 
     private ApiError buildError(String message, HttpStatus status) {
         return new ApiError(message, status, ZonedDateTime.now(ZoneId.of("Z")));
+    }
+
+    private ApiError buildError(String message, HttpStatus status, Map<String, String> errors) {
+        return new ApiError(message, status, ZonedDateTime.now(ZoneId.of("Z")), errors);
     }
 }

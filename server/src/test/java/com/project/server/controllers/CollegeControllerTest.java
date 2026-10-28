@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class CollegeControllerTest extends BaseIntegrationTest {
@@ -50,6 +51,19 @@ class CollegeControllerTest extends BaseIntegrationTest {
                 .content(objectMapper.writeValueAsString(toCollegeRequest())))
                 .andDo(print())
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @WithMockUser(roles = {"ADMINISTRATOR"})
+    void should_create_college_FAILURE_VALIDATION_ERROR() throws Exception {
+        CollegeRequest blank = CollegeRequest.builder().collegeName("").collegeShortName("").build();
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/colleges/create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(blank)))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.result.errors.collegeName").value("College name cannot be empty"))
+                .andExpect(jsonPath("$.result.errors.collegeShortName").value("College short name cannot be empty"));
     }
 
     @Test
