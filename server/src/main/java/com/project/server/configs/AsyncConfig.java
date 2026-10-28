@@ -1,13 +1,16 @@
 package com.project.server.configs;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -25,8 +28,25 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setMaxPoolSize(10);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("ProjectAsync-");
+        // MDC is thread-local, so the tenant id TenantContext put there (see TenantContext) would
+        // otherwise silently disappear once the mail-sending work hops onto a pool thread.
+        executor.setTaskDecorator(taskDecorator());
         executor.initialize();
         return executor;
+    }
+
+    private TaskDecorator taskDecorator() {
+        return runnable -> {
+            Map<String, String> callerMdcContext = MDC.getCopyOfContextMap();
+            return () -> {
+                try {
+                    if (callerMdcContext != null) MDC.setContextMap(callerMdcContext);
+                    runnable.run();
+                } finally {
+                    MDC.clear();
+                }
+            };
+        };
     }
 
     /**
