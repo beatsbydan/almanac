@@ -89,6 +89,15 @@ class CourseControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void should_get_courses_FAILURE_TYPE_MISMATCH() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/courses")
+                        .param("isShared", "not-a-boolean")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @WithMockUser(roles = {"ADMINISTRATOR"})
     void should_filter_courses_SUCCESS() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/courses/filter/123")

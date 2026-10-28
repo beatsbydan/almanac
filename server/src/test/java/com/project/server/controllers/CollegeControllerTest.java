@@ -68,6 +68,16 @@ class CollegeControllerTest extends BaseIntegrationTest {
 
     @Test
     @WithMockUser(roles = {"ADMINISTRATOR"})
+    void should_create_college_FAILURE_MALFORMED_BODY() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/colleges/create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not valid json"))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = {"ADMINISTRATOR"})
     void should_update_college_SUCCESS() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/colleges/update/123")
                 .contentType(MediaType.APPLICATION_JSON)

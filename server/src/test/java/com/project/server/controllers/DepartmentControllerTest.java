@@ -95,6 +95,14 @@ class DepartmentControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void should_get_departments_FAILURE_MISSING_REQUIRED_PARAM() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/departments")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void should_get_department_SUCCESS() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/departments/filter/123")
                         .contentType(MediaType.APPLICATION_JSON))
