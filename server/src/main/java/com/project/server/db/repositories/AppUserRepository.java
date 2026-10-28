@@ -8,11 +8,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findByUserId(String userId);
+    List<AppUser> findByRole(Role role);
 
     @Query("SELECT u FROM AppUser u WHERE u.userEmail = :email OR u.userId =:id")
     Optional<AppUser> findByEmailOrId(@Param("email") String userEmail, @Param(("id")) String userId);
