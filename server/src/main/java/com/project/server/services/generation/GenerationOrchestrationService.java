@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,7 +76,20 @@ public class GenerationOrchestrationService {
      */
     public GenerationJobResponse trigger(GenerationTriggerRequest request) {
         GenerationJob job = generationJobService.save(GenerationJob.builder().status(GenerationJobStatus.PENDING).build());
-        generationWorker.run(job.getCode(), TenantContext.get(), request);
+        try {
+            generationWorker.run(job.getCode(), TenantContext.get(), request);
+        } catch (TaskRejectedException e) {
+            // Found via k6 load testing: AsyncConfig's executor (corePoolSize=2, maxPoolSize=10,
+            // queueCapacity=100) rejects past 110 in-flight jobs, and that rejection happens
+            // synchronously on THIS thread, before run() ever gets to set TenantContext or touch
+            // the job — so without this, the job this method just created stays PENDING forever
+            // (nothing ever updates it), and the caller gets a bare 500 instead of a response
+            // that says what actually happened.
+            log.warn("Generation job {} rejected — executor at capacity: {}", job.getCode(), e.getMessage());
+            job.setStatus(GenerationJobStatus.FAILED);
+            job.setMessage("The system is currently processing too many generation requests. Please try again shortly.");
+            job = generationJobService.save(job);
+        }
         return toJobResponse(job);
     }
 
