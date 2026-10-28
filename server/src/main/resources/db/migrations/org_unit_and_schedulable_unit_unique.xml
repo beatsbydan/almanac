@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Same class of bug as schedules and users: college/department creation
+        (isExistingRoot/isExistingChild, both OrgUnit-backed) and course creation
+        (isExistingByTitle) only ever checked-then-created with no lock and no DB constraint —
+        only the internal auto-generated `code` column was unique. Found via k6 load testing.
+        Fixed at the application level with registration locks in CollegeMgtService/
+        DepartmentMgtService/CourseMgtService; these constraints are the defense-in-depth layer,
+        same pattern as uk_schedule_schedulable_unit and uk_user_user_id/uk_user_user_email.
+
+        Scoped by tenant (and, for org_units, by type) rather than globally — unlike a schedule's
+        course or a user's login id, a name like "Computer Science" is expected to legitimately
+        repeat across different tenants, and a college and a department are allowed to share a
+        name since the app's own queries already discriminate by type.
+    -->
+    <changeSet id="add_unique_constraint_org_unit_name" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="org_units" indexName="uk_org_unit_tenant_type_name"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="org_units" columnNames="tenant_id, type, name" constraintName="uk_org_unit_tenant_type_name"/>
+    </changeSet>
+
+    <changeSet id="add_unique_constraint_org_unit_short_name" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="org_units" indexName="uk_org_unit_tenant_type_short_name"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="org_units" columnNames="tenant_id, type, short_name" constraintName="uk_org_unit_tenant_type_short_name"/>
+    </changeSet>
+
+    <changeSet id="add_unique_constraint_schedulable_unit_title" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="schedulable_units" indexName="uk_schedulable_unit_tenant_title"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="schedulable_units" columnNames="tenant_id, title" constraintName="uk_schedulable_unit_tenant_title"/>
+    </changeSet>
+
+    <!--
+        Deferred to commit time, not checked per-statement: CourseMgtService.upsertCourse's update
+        path clears every SchedulableUnitCode on the course and re-inserts fresh rows for the
+        (possibly unchanged) requested codes, all within one transaction — a transient duplicate
+        of the old row and the new one for the same unit_code exists mid-transaction even when the
+        net result after commit is a single row. A non-deferred constraint broke that existing,
+        correct update pattern (caught by the full test suite, not just this migration).
+    -->
+    <changeSet id="add_unique_constraint_schedulable_unit_code_unit_code" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="schedulable_unit_codes" indexName="uk_schedulable_unit_code_tenant_unit_code"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="schedulable_unit_codes" columnNames="tenant_id, unit_code" constraintName="uk_schedulable_unit_code_tenant_unit_code" deferrable="true" initiallyDeferred="true"/>
+    </changeSet>
+
+</databaseChangeLog>

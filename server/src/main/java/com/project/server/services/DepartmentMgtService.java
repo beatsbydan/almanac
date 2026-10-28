@@ -25,15 +25,52 @@ import java.util.Optional;
 public class DepartmentMgtService {
     private final OrgUnitService orgUnitService;
     private final AppUserService userService;
+    private final RedissonLockService redissonLockService;
 
+    /**
+     * Same unprotected check-then-create shape as college/schedule creation and user
+     * registration — isExistingChild()-then-save() with no lock. Locks on both name and
+     * shortName, since isExistingChild matches on either.
+     */
     public MessageResponse createDepartment(DepartmentRequest request) throws DuplicateEntryException, NotFoundException {
-        if(orgUnitService.isExistingChild(request.getDepartmentName(), request.getDepartmentShortName())) throw new DuplicateEntryException("Department already exists");
+        List<String> locks = acquireLocks(
+                "department-registration:name:" + normalizeKey(request.getDepartmentName()),
+                "department-registration:shortname:" + normalizeKey(request.getDepartmentShortName())
+        );
+        try {
+            if (locks.size() < 2) throw new DuplicateEntryException("This department is currently being created, please try again.");
+            if(orgUnitService.isExistingChild(request.getDepartmentName(), request.getDepartmentShortName())) throw new DuplicateEntryException("Department already exists");
 
-        OrgUnit college = null;
-        if(request.getCollege() != null && !request.getCollege().isEmpty()) college = orgUnitService.getRootByName(request.getCollege());
+            OrgUnit college = null;
+            if(request.getCollege() != null && !request.getCollege().isEmpty()) college = orgUnitService.getRootByName(request.getCollege());
 
-        orgUnitService.save(toCreateDbModel(college, request));
-        return new MessageResponse("Department created successfully.");
+            orgUnitService.save(toCreateDbModel(college, request));
+            return new MessageResponse("Department created successfully.");
+        } finally {
+            releaseLocks(locks);
+        }
+    }
+
+    private List<String> acquireLocks(String... keys){
+        List<String> locks = new ArrayList<>();
+        for (String key : keys) {
+            if (redissonLockService.tryLock(key, 5, 15)) locks.add(key);
+        }
+        return locks;
+    }
+
+    private void releaseLocks(List<String> locks){
+        for (String lock : locks) {
+            try {
+                redissonLockService.unlock(lock);
+            } catch (Exception e) {
+                log.warn("Failed to release lock {}: {}", lock, e.getMessage());
+            }
+        }
+    }
+
+    private String normalizeKey(String value){
+        return value == null ? "" : value.trim().toUpperCase();
     }
 
     public MessageResponse updateDepartment(String code, DepartmentRequest request) throws NotFoundException {

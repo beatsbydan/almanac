@@ -73,6 +73,7 @@ public class AuthMgtService implements LogoutHandler {
     private final OrgUnitService orgUnitService;
     private final TenantService tenantService;
     private final RedissonClient redissonClient;
+    private final RedissonLockService redissonLockService;
 
     private static final int MAX_OTP_ATTEMPTS = 5;
     private static final long DEFAULT_OTP_WINDOW_SECONDS = 900;
@@ -94,23 +95,69 @@ public class AuthMgtService implements LogoutHandler {
     private String secretKey;
 
 
+    /**
+     * isExistingUser()-then-save() had no lock and (per schema inspection) no unique DB
+     * constraint on user_id or user_email either — only the internal auto-generated code column
+     * is unique. Found via k6 load testing: 10 concurrent registrations with the identical
+     * staffId all succeeded, creating 10 duplicate rows and then permanently 500ing that user's
+     * own login (findByUserId is a single-result query). Locks on both id and email, since either
+     * could collide independently of the other.
+     */
     public MessageResponse createUser(StaffSignUpRequest request) throws DuplicateEntryException, NotFoundException {
-        if(userService.isExistingUser(request)) throw new DuplicateEntryException("This user already exists.");
+        List<String> locks = acquireRegistrationLocks(request.getStaffId(), request.getStaffEmail());
+        try {
+            if (locks.size() < 2) throw new DuplicateEntryException("This user is currently being registered, please try again.");
+            if(userService.isExistingUser(request)) throw new DuplicateEntryException("This user already exists.");
 
-        userService.save(toUserDbModel(request));
+            userService.save(toUserDbModel(request));
 
-        return new MessageResponse("Registration was successful.");
+            return new MessageResponse("Registration was successful.");
+        } finally {
+            releaseRegistrationLocks(locks);
+        }
     }
     public MessageResponse createUser(StudentSignUpRequest request) throws DuplicateEntryException, NotFoundException{
-        if(userService.isExistingUser(request)) throw new DuplicateEntryException("This user already exists.");
-        else if (userService.hasExistingCourseRepresentative(request)) throw new DuplicateEntryException(String.format("%s already has a class representative for %s level.", request.getDepartment(), request.getLevel()));
+        List<String> locks = acquireRegistrationLocks(request.getStudentId(), request.getStudentEmail());
+        String repLockKey = String.format("user-registration:rep:%s:%s", normalizeKey(request.getDepartment()), normalizeKey(request.getLevel()));
+        if (redissonLockService.tryLock(repLockKey, 5, 15)) locks.add(repLockKey);
 
-        Level level = levelService.getByLevel(request.getLevel());
-        OrgUnit department = orgUnitService.getChildByName(request.getDepartment());
+        try {
+            if (locks.size() < 3) throw new DuplicateEntryException("This user is currently being registered, please try again.");
+            if(userService.isExistingUser(request)) throw new DuplicateEntryException("This user already exists.");
+            else if (userService.hasExistingCourseRepresentative(request)) throw new DuplicateEntryException(String.format("%s already has a class representative for %s level.", request.getDepartment(), request.getLevel()));
 
-        userService.save(toUserDbModel(request, department, level));
+            Level level = levelService.getByLevel(request.getLevel());
+            OrgUnit department = orgUnitService.getChildByName(request.getDepartment());
 
-        return new MessageResponse("Registration was successful.");
+            userService.save(toUserDbModel(request, department, level));
+
+            return new MessageResponse("Registration was successful.");
+        } finally {
+            releaseRegistrationLocks(locks);
+        }
+    }
+
+    private List<String> acquireRegistrationLocks(String userId, String email){
+        List<String> locks = new ArrayList<>();
+        String idLock = "user-registration:id:" + normalizeKey(userId);
+        String emailLock = "user-registration:email:" + normalizeKey(email);
+        if (redissonLockService.tryLock(idLock, 5, 15)) locks.add(idLock);
+        if (redissonLockService.tryLock(emailLock, 5, 15)) locks.add(emailLock);
+        return locks;
+    }
+
+    private void releaseRegistrationLocks(List<String> locks){
+        for (String lock : locks) {
+            try {
+                redissonLockService.unlock(lock);
+            } catch (Exception e) {
+                log.warn("Failed to release registration lock {}: {}", lock, e.getMessage());
+            }
+        }
+    }
+
+    private String normalizeKey(String value){
+        return value == null ? "" : value.trim().toUpperCase();
     }
 
     /**

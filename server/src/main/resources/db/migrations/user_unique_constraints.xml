@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Only the internal auto-generated `code` column was ever unique on users — user_id (the
+        actual login identifier) and user_email had no constraint at all. Found via k6 load
+        testing: 10 concurrent registrations with the identical staffId all succeeded, creating 10
+        duplicate rows, which then permanently 500'd that user's own login (findByUserId is a
+        single-result query). Defense in depth alongside the new registration locks in
+        AuthMgtService: this is what would actually stop a duplicate if the lock were ever
+        bypassed or forgotten in a future change.
+    -->
+    <changeSet id="add_unique_constraint_user_user_id" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="users" indexName="uk_user_user_id"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="users" columnNames="user_id" constraintName="uk_user_user_id"/>
+    </changeSet>
+
+    <changeSet id="add_unique_constraint_user_user_email" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="users" indexName="uk_user_user_email"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="users" columnNames="user_email" constraintName="uk_user_user_email"/>
+    </changeSet>
+
+</databaseChangeLog>

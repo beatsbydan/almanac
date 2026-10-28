@@ -27,4 +27,6 @@
     <include file="classpath:db/migrations/generalized_academic_model_cutover.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/generation_job_schema.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/schedule_schedulable_unit_unique.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/user_unique_constraints.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/org_unit_and_schedulable_unit_unique.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

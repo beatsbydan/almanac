@@ -24,13 +24,50 @@ import java.util.List;
 @Slf4j
 public class CollegeMgtService {
     private final OrgUnitService orgUnitService;
+    private final RedissonLockService redissonLockService;
 
+    /**
+     * isExistingRoot()-then-save() had no lock — same unprotected check-then-create shape as
+     * schedule creation and user registration, both found racing under k6 load testing. Locks on
+     * both name and shortName, since isExistingRoot matches on either.
+     */
     public MessageResponse createCollege(CollegeRequest request) throws DuplicateEntryException{
-        if(orgUnitService.isExistingRoot(request.getCollegeName(), request.getCollegeShortName())) throw new DuplicateEntryException("College already exists");
+        List<String> locks = acquireLocks(
+                "college-registration:name:" + normalizeKey(request.getCollegeName()),
+                "college-registration:shortname:" + normalizeKey(request.getCollegeShortName())
+        );
+        try {
+            if (locks.size() < 2) throw new DuplicateEntryException("This college is currently being created, please try again.");
+            if(orgUnitService.isExistingRoot(request.getCollegeName(), request.getCollegeShortName())) throw new DuplicateEntryException("College already exists");
 
-        orgUnitService.save(toCreateDbModel(request));
+            orgUnitService.save(toCreateDbModel(request));
 
-        return new MessageResponse("College created successfully.");
+            return new MessageResponse("College created successfully.");
+        } finally {
+            releaseLocks(locks);
+        }
+    }
+
+    private List<String> acquireLocks(String... keys){
+        List<String> locks = new ArrayList<>();
+        for (String key : keys) {
+            if (redissonLockService.tryLock(key, 5, 15)) locks.add(key);
+        }
+        return locks;
+    }
+
+    private void releaseLocks(List<String> locks){
+        for (String lock : locks) {
+            try {
+                redissonLockService.unlock(lock);
+            } catch (Exception e) {
+                log.warn("Failed to release lock {}: {}", lock, e.getMessage());
+            }
+        }
+    }
+
+    private String normalizeKey(String value){
+        return value == null ? "" : value.trim().toUpperCase();
     }
 
     public MessageResponse updateCollege(String code, CollegeRequest request) throws NotFoundException {

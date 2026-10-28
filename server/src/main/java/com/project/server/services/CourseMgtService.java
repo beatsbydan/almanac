@@ -30,40 +30,82 @@ public class CourseMgtService {
     private final SchedulableUnitService schedulableUnitService;
     private final LevelService levelService;
     private final OrgUnitService orgUnitService;
+    private final RedissonLockService redissonLockService;
 
+    /**
+     * Same unprotected check-then-create shape as college/department/schedule creation and user
+     * registration — isExistingByTitle/isExistingCode-then-save() with no lock, only on the
+     * create path (an update identifies its course by code already, so it isn't racing a
+     * not-yet-committed duplicate). Locks on the title and every course code being claimed.
+     */
     public MessageResponse upsertCourse(CourseRequest request, Type type, String code) throws NotFoundException, DuplicateEntryException {
         boolean isCreate = type == Type.CREATE;
-
-        if(schedulableUnitService.isExistingByTitle(request.getCourseTitle()) && isCreate) throw new DuplicateEntryException("This course already exists.");
-
-        SchedulableUnit course;
-        if(isCreate){
-            course = schedulableUnitService.save(toCreateDbModel(request));
+        List<String> lockKeys = new ArrayList<>();
+        if (isCreate) {
+            lockKeys.add("course-registration:title:" + normalizeKey(request.getCourseTitle()));
+            for (String courseCode : request.getCourseCodes()) {
+                lockKeys.add("course-registration:code:" + normalizeKey(courseCode));
+            }
         }
-        else{
-            course = toUpdateDbModel(schedulableUnitService.getByCode(code), request);
+        List<String> locks = acquireLocks(lockKeys.toArray(new String[0]));
+
+        try {
+            if (isCreate && locks.size() < lockKeys.size()) throw new DuplicateEntryException("This course is currently being created, please try again.");
+            if(schedulableUnitService.isExistingByTitle(request.getCourseTitle()) && isCreate) throw new DuplicateEntryException("This course already exists.");
+
+            SchedulableUnit course;
+            if(isCreate){
+                course = schedulableUnitService.save(toCreateDbModel(request));
+            }
+            else{
+                course = toUpdateDbModel(schedulableUnitService.getByCode(code), request);
+            }
+
+            List<SchedulableUnitParticipant> courseParticipants = toCourseParticipants(request, course);
+            List<SchedulableUnitCode> courseCodes = toCourseCodes(request, course, isCreate);
+
+            for (SchedulableUnitParticipant cp : course.getParticipants()) {
+                cp.setSchedulableUnit(null);
+            }
+            course.getParticipants().clear();
+
+            for (SchedulableUnitCode cc : course.getCodes()) {
+                cc.setSchedulableUnit(null);
+            }
+            course.getCodes().clear();
+
+            course.getParticipants().addAll(courseParticipants);
+            course.getCodes().addAll(courseCodes);
+
+            schedulableUnitService.save(course);
+
+            String action = isCreate ? "created" : "updated";
+            return new MessageResponse(String.format("Course was %s successfully.", action));
+        } finally {
+            releaseLocks(locks);
         }
+    }
 
-        List<SchedulableUnitParticipant> courseParticipants = toCourseParticipants(request, course);
-        List<SchedulableUnitCode> courseCodes = toCourseCodes(request, course, isCreate);
-
-        for (SchedulableUnitParticipant cp : course.getParticipants()) {
-            cp.setSchedulableUnit(null);
+    private List<String> acquireLocks(String... keys){
+        List<String> locks = new ArrayList<>();
+        for (String key : keys) {
+            if (redissonLockService.tryLock(key, 5, 15)) locks.add(key);
         }
-        course.getParticipants().clear();
+        return locks;
+    }
 
-        for (SchedulableUnitCode cc : course.getCodes()) {
-            cc.setSchedulableUnit(null);
+    private void releaseLocks(List<String> locks){
+        for (String lock : locks) {
+            try {
+                redissonLockService.unlock(lock);
+            } catch (Exception e) {
+                log.warn("Failed to release lock {}: {}", lock, e.getMessage());
+            }
         }
-        course.getCodes().clear();
+    }
 
-        course.getParticipants().addAll(courseParticipants);
-        course.getCodes().addAll(courseCodes);
-
-        schedulableUnitService.save(course);
-
-        String action = isCreate ? "created" : "updated";
-        return new MessageResponse(String.format("Course was %s successfully.", action));
+    private String normalizeKey(String value){
+        return value == null ? "" : value.trim().toUpperCase();
     }
 
     public List<CourseResponse> getCourses(
