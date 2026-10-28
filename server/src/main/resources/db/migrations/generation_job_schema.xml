@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="create_generation_jobs_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="generation_jobs"/>
+            </not>
+        </preConditions>
+        <createTable tableName="generation_jobs">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_generation_job" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_generation_job" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scheduled_count" type="INT"/>
+            <column name="message" type="VARCHAR(500)"/>
+            <column name="infeasible_unit_codes" type="VARCHAR(1000)"/>
+            <column name="skipped_no_teacher_unit_codes" type="VARCHAR(1000)"/>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="generation_jobs" baseColumnNames="tenant_id" constraintName="fk_generation_job_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -4,6 +4,7 @@ import com.project.server.configs.tenant.TenantContext;
 import com.project.server.db.models.*;
 import com.project.server.db.services.appUser.AppUserService;
 import com.project.server.db.services.classroom.ClassRoomService;
+import com.project.server.db.services.generationJob.GenerationJobService;
 import com.project.server.db.services.schedulableUnit.SchedulableUnitService;
 import com.project.server.db.services.schedule.ScheduleService;
 import com.project.server.db.services.scheduleCombination.ScheduleCombinationService;
@@ -11,16 +12,21 @@ import com.project.server.db.services.tenantCalendar.TenantCalendarService;
 import com.project.server.db.services.timetable.TimeTableService;
 import com.project.server.dtos.generation.*;
 import com.project.server.dtos.request.generation.GenerationTriggerRequest;
+import com.project.server.dtos.response.generation.GenerationJobResponse;
 import com.project.server.dtos.response.generation.GenerationResultResponse;
 import com.project.server.dtos.response.generation.UnscheduledCourseResponse;
+import com.project.server.enums.GenerationJobStatus;
 import com.project.server.exceptions.NotFoundException;
 import com.project.server.exceptions.ScheduleUpsertException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +55,49 @@ public class GenerationOrchestrationService {
     private final TimeTableService timeTableService;
     private final ScheduleService scheduleService;
     private final GenerationEngineClient engineClient;
+    private final GenerationJobService generationJobService;
+
+    /**
+     * GenerationWorker calls back into generate() below, so a constructor-injected field would be
+     * a circular dependency Spring can't construct; @Lazy defers resolution until first use,
+     * same workaround AuthMgtService already uses for its AuthenticationManager.
+     */
+    @Lazy
+    @Autowired
+    private GenerationWorker generationWorker;
+
+    /**
+     * Kicks off a generation run without waiting for it: creates a PENDING GenerationJob and hands
+     * the actual solve (which may hold a DB transaction open for however long the external engine
+     * takes) off to GenerationWorker's @Async method, returning immediately. Replaces generate()
+     * as the path a real HTTP trigger should use — generate() stays available as the synchronous
+     * primitive GenerationWorker (and the existing direct-call test) build on.
+     */
+    public GenerationJobResponse trigger(GenerationTriggerRequest request) {
+        GenerationJob job = generationJobService.save(GenerationJob.builder().status(GenerationJobStatus.PENDING).build());
+        generationWorker.run(job.getCode(), TenantContext.get(), request);
+        return toJobResponse(job);
+    }
+
+    public GenerationJobResponse getJob(String code) throws NotFoundException {
+        return toJobResponse(generationJobService.getByCode(code));
+    }
+
+    private GenerationJobResponse toJobResponse(GenerationJob job) {
+        return GenerationJobResponse.builder()
+                .code(job.getCode())
+                .status(job.getStatus())
+                .scheduledCount(job.getScheduledCount())
+                .message(job.getMessage())
+                .infeasibleUnitCodes(splitOrEmpty(job.getInfeasibleUnitCodes()))
+                .skippedNoTeacherUnitCodes(splitOrEmpty(job.getSkippedNoTeacherUnitCodes()))
+                .build();
+    }
+
+    private List<String> splitOrEmpty(String commaSeparated) {
+        if (commaSeparated == null || commaSeparated.isBlank()) return List.of();
+        return Arrays.asList(commaSeparated.split(","));
+    }
 
     /** Lets an admin client discover what to put in GenerationTriggerRequest.lecturerAssignments. */
     public List<UnscheduledCourseResponse> getUnscheduledCourses() {

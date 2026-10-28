@@ -25,4 +25,5 @@
     <include file="classpath:db/migrations/tenant_scoping.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/generalized_academic_model.xml" relativeToChangelogFile="false"/>
     <include file="classpath:db/migrations/generalized_academic_model_cutover.xml" relativeToChangelogFile="false"/>
+    <include file="classpath:db/migrations/generation_job_schema.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

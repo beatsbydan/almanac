@@ -1,6 +1,8 @@
 package com.project.server.services.generation;
 
 import com.project.server.BaseIntegrationTest;
+import com.project.server.db.models.GenerationJob;
+import com.project.server.db.services.generationJob.GenerationJobService;
 import com.project.server.dtos.request.ClassroomRequest;
 import com.project.server.dtos.request.CollegeRequest;
 import com.project.server.dtos.request.DepartmentRequest;
@@ -8,8 +10,10 @@ import com.project.server.dtos.request.auth.StaffSignUpRequest;
 import com.project.server.dtos.request.course.CourseParticipantRequest;
 import com.project.server.dtos.request.course.CourseRequest;
 import com.project.server.dtos.request.generation.GenerationTriggerRequest;
+import com.project.server.dtos.response.generation.GenerationJobResponse;
 import com.project.server.dtos.response.generation.GenerationResultResponse;
 import com.project.server.dtos.request.TimetableRequest;
+import com.project.server.enums.GenerationJobStatus;
 import com.project.server.enums.Type;
 import com.project.server.services.*;
 import com.project.server.services.timetable.TimeTableMgtService;
@@ -48,6 +52,10 @@ class GenerationOrchestrationServiceTest extends BaseIntegrationTest {
     private CourseMgtService courseMgtService;
     @Autowired
     private com.project.server.db.services.timetable.TimeTableService timeTableService;
+    @Autowired
+    private GenerationWorker generationWorker;
+    @Autowired
+    private GenerationJobService generationJobService;
 
     @Test
     @SneakyThrows
@@ -97,6 +105,55 @@ class GenerationOrchestrationServiceTest extends BaseIntegrationTest {
 
         assertEquals(1, unscheduled.size());
         assertEquals("Title", unscheduled.getFirst().getTitle());
+    }
+
+    @Test
+    @SneakyThrows
+    void trigger_createsAPendingJobImmediatelyWithoutWaitingForTheEngine() {
+        timeTableMgtService.deactivate();
+        timeTableMgtService.createTimeTable(toTimeTableRequest());
+        timeTableMgtService.changeScheduleCreationStatus(timeTableService.getActiveTimeTable().getCode(), "ENABLED");
+        collegeMgtService.createCollege(toCollegeRequest());
+        departmentMgtService.createDepartment(toDepartmentRequest());
+        courseMgtService.upsertCourse(toCourseRequest(), Type.CREATE, null);
+        String courseCode = courseMgtService.filterCourses("Title").getFirst().getCode();
+
+        GenerationJobResponse response = generationOrchestrationService.trigger(
+                GenerationTriggerRequest.builder().lecturerAssignments(Map.of(courseCode, "staffId")).build());
+
+        assertNotNull(response.getCode());
+        assertEquals(GenerationJobStatus.PENDING, response.getStatus());
+    }
+
+    /**
+     * runSync is GenerationWorker's actual logic, called directly (same thread, same transaction)
+     * rather than through its @Async entry point — avoids racing a background thread against this
+     * test's transaction-rollback-based cleanup. The engine genuinely isn't running in this
+     * environment, so this exercises the real failure-handling path, not a mocked one.
+     */
+    @Test
+    @SneakyThrows
+    void runSync_marksTheJobFailedWhenTheEngineIsUnreachable() {
+        timeTableMgtService.deactivate();
+        timeTableMgtService.createTimeTable(toTimeTableRequest());
+        timeTableMgtService.changeScheduleCreationStatus(timeTableService.getActiveTimeTable().getCode(), "ENABLED");
+        collegeMgtService.createCollege(toCollegeRequest());
+        departmentMgtService.createDepartment(toDepartmentRequest());
+        authMgtService.createUser(toStaffSignUpRequest());
+        classroomMgtService.createClassroom(toClassRoomRequest());
+        courseMgtService.upsertCourse(toCourseRequest(), Type.CREATE, null);
+        String courseCode = courseMgtService.filterCourses("Title").getFirst().getCode();
+
+        GenerationJob job = generationJobService.save(GenerationJob.builder().status(GenerationJobStatus.PENDING).build());
+        GenerationTriggerRequest request = GenerationTriggerRequest.builder()
+                .lecturerAssignments(Map.of(courseCode, "staffId"))
+                .build();
+
+        generationWorker.runSync(job.getCode(), request);
+
+        GenerationJob updated = generationJobService.getByCode(job.getCode());
+        assertEquals(GenerationJobStatus.FAILED, updated.getStatus());
+        assertNotNull(updated.getMessage());
     }
 
     private TimetableRequest toTimeTableRequest() {
