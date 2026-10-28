@@ -1,13 +1,15 @@
 package com.project.server.services.timetable;
 
+import com.project.server.configs.tenant.TenantContext;
 import com.project.server.db.models.*;
-import com.project.server.db.services.courseCode.CourseCodeService;
 import com.project.server.db.services.schedule.ScheduleService;
+import com.project.server.db.services.tenant.TenantService;
+import com.project.server.db.services.tenantCalendar.TenantCalendarService;
 import com.project.server.dtos.response.DocumentResponse;
 import com.project.server.enums.Role;
 import com.project.server.exceptions.TimeTableGenerationException;
-import com.project.server.util.VariableUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.FontFamily;
 import org.apache.poi.xwpf.usermodel.*;
@@ -26,7 +28,8 @@ import static com.project.server.util.HelperUtil.createTextRun;
 @Slf4j
 public class TimeTableGenerationService {
     private final ScheduleService scheduleService;
-    private final CourseCodeService courseCodeService;
+    private final TenantCalendarService tenantCalendarService;
+    private final TenantService tenantService;
 
     public DocumentResponse generate(
             TimeTable timeTable,
@@ -43,8 +46,10 @@ public class TimeTableGenerationService {
              ByteArrayOutputStream out = new ByteArrayOutputStream())
         {
 
+            String tenantName = tenantService.getById(TenantContext.get()).getName();
+
             XWPFRun titleRun = createTextRun(document);
-            titleRun.setText(String.format("BOWEN UNIVERSITY %s session %s SEMESTER TIMETABLE", timeTable.getSession(), timeTable.getSemester()));
+            titleRun.setText(String.format("%s %s session %s SEMESTER TIMETABLE", tenantName.toUpperCase(), timeTable.getSession(), timeTable.getSemester()));
             titleRun.setBold(true);
             titleRun.setFontSize(20);
             titleRun.setFontFamily(String.valueOf(FontFamily.ROMAN));
@@ -68,6 +73,7 @@ public class TimeTableGenerationService {
         return new DocumentResponse(bytesArr, user.getTimeTableFileName());
     }
 
+    @SneakyThrows
     private Map<String, List<Schedule>> groupAndSortSchedules(List<Schedule> schedules){
         Map<String, List<Schedule>> groupedSchedules = new HashMap<>();
 
@@ -81,7 +87,7 @@ public class TimeTableGenerationService {
         }
 
         Map<String, List<Schedule>> groupedAndSortedSchedules = new LinkedHashMap<>();
-        for(String day : VariableUtil.DAYS){
+        for(String day : tenantCalendarService.getDaysInUse(TenantContext.get())){
             List<Schedule> schedulesForDay = groupedSchedules.get(day);
             if(schedulesForDay != null && !schedulesForDay.isEmpty()){
                 groupedAndSortedSchedules.put(day, groupedSchedules.get(day));
@@ -121,11 +127,11 @@ public class TimeTableGenerationService {
         for(int i = 1; i < tableRows; i++){
             Schedule currentSchedule = schedules.get(i - 1);
 
-            String courseCodesString = String.join(", ", courseCodeService.getCourseCodesByCourse(currentSchedule.getCourse()).stream().map(CourseCode::getCourseCode).toList());
+            String courseCodesString = String.join(", ", currentSchedule.getSchedulableUnit().getCodes().stream().map(SchedulableUnitCode::getUnitCode).toList());
             String classRoomsString = String.join(", ", currentSchedule.getClassRooms().stream().map(ClassRoom::getName).toList());
 
             table.getRow(i).getCell(0).setText(String.valueOf(i));
-            table.getRow(i).getCell(1).setText(currentSchedule.getCourse().getCourseTitle());
+            table.getRow(i).getCell(1).setText(currentSchedule.getSchedulableUnit().getTitle());
             table.getRow(i).getCell(2).setText(courseCodesString);
             table.getRow(i).getCell(3).setText(currentSchedule.getTimePeriod());
             table.getRow(i).getCell(4).setText(classRoomsString);
@@ -147,12 +153,12 @@ public class TimeTableGenerationService {
 
     private void addStudentHeadings(XWPFDocument document, AppUser student){
         XWPFRun collegeRun = createTextRun(document);
-        collegeRun.setText(String.format("%s", student.getDepartment().getCollege().getName()));
+        collegeRun.setText(String.format("%s", student.getOrgUnit().getParent().getName()));
         collegeRun.setItalic(true);
         collegeRun.setFontFamily(String.valueOf(FontFamily.ROMAN));
 
         XWPFRun deptRun = createTextRun(document);
-        deptRun.setText(String.format("Department Of %s", student.getDepartment().getName()));
+        deptRun.setText(String.format("Department Of %s", student.getOrgUnit().getName()));
         deptRun.setItalic(true);
         deptRun.setFontFamily(String.valueOf(FontFamily.ROMAN));
 

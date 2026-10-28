@@ -19,12 +19,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class HelperUtil {
-    public static String generateFilename(String session, String semester){
-        return String.format("Bowen_University_%s_%s_Semester_TimeTable.docx", session, semester);
+    public static String generateFilename(String tenantName, String session, String semester){
+        return String.format("%s_%s_%s_Semester_TimeTable.docx", sanitizeForFilename(tenantName), session, semester);
     }
 
-    public static String generateStudentFileName(String department, String level){
-        return String.format("BUI_%s_%s_timetable.docx", level, String.join("_", department.split(" ")));
+    public static String generateStudentFileName(String tenantName, String department, String level){
+        return String.format("%s_%s_%s_timetable.docx", sanitizeForFilename(tenantName), level, sanitizeForFilename(department));
+    }
+
+    private static String sanitizeForFilename(String value){
+        return String.join("_", value.split(" "));
     }
     public static String generateStaffFileName(String userId){
         return String.format("%s_schedules.docx", userId);
