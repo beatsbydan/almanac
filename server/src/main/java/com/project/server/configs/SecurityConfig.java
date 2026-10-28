@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/api/v1/departments",
                                 "/api/v1/departments/filter/**"
                         ).permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMINISTRATOR")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling((exception) -> exception
