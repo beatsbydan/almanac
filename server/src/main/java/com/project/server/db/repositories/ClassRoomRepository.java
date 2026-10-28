@@ -23,7 +23,7 @@ public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
     """)
     List<ClassRoom> findAllByCollege(@Param("orgUnit") String orgUnit);
 
-    @Query("SELECT c FROM ClassRoom c WHERE c.orgUnit.shortName = :orgUnit")
+    @Query("SELECT c FROM ClassRoom c WHERE c.orgUnit.name = :orgUnit OR c.orgUnit.shortName = :orgUnit")
     List<ClassRoom> filterByCollege(@Param("orgUnit") String orgUnit);
 
     @Query("SELECT c FROM ClassRoom c WHERE c.orgUnit IS NULL")

@@ -47,13 +47,24 @@ public class DepartmentMgtService {
         return new MessageResponse("Department updated successfully.");
     }
 
+    /**
+     * With no college param, falls back to "departments under the current user's own college" —
+     * but an ADMINISTRATOR (seeded with no orgUnit at all, see ServerStartUpMgtService) or any
+     * user whose department was created without a college (college is optional on
+     * DepartmentRequest) has no college to fall back to. Either is a normal, reachable state, not
+     * a data-integrity problem, so this returns an empty list rather than NPEing.
+     */
     public List<DepartmentResponse> getDepartments(String college) throws NotFoundException {
         if(!college.isEmpty()) return toResponse(orgUnitService.getAllByParentName(college));
         else {
             String userId = HelperUtil.getCurrentUserName();
             Optional<AppUser> user = userService.getByUserIdOpt(userId);
 
-            return user.map(appUser -> toResponse(orgUnitService.getAllByParentName(appUser.getOrgUnit().getParent().getShortName()))).orElseGet(() -> toResponse(new ArrayList<>()));
+            return user
+                    .map(AppUser::getOrgUnit)
+                    .map(OrgUnit::getParent)
+                    .map(parent -> toResponse(orgUnitService.getAllByParentName(parent.getShortName())))
+                    .orElseGet(() -> toResponse(new ArrayList<>()));
         }
     }
 

@@ -48,12 +48,19 @@ class ClassroomMgtServiceTest extends BaseIntegrationTest {
         assertNotNull(messageResponse);
     }
 
+    /**
+     * The college here is seeded with name="college", shortName="DEPT" (deliberately different,
+     * see init()) — filterByCollege used to match only shortName, so looking a classroom up by
+     * its college's full name (the same identifier format accepted when creating it) silently
+     * returned nothing. assertNotNull alone doesn't catch that, since an empty list is also
+     * non-null — found by actually exercising this through the live API, not just this test.
+     */
     @Test
     @SneakyThrows
     void should_find_classrooms() {
         List<ClassroomResponse> responses = classroomMgtService.findClassroomsByCollege("college");
 
-        assertNotNull(responses);
+        assertEquals(1, responses.size());
     }
 
     @Test
