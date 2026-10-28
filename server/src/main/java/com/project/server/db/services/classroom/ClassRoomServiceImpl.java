@@ -48,4 +48,9 @@ public class ClassRoomServiceImpl implements ClassRoomService{
     public List<ClassRoom> filterByNameOrCollege(String key) {
         return repository.filterByNameOrCollege(key);
     }
+
+    @Override
+    public List<ClassRoom> getAll() {
+        return repository.findAll();
+    }
 }

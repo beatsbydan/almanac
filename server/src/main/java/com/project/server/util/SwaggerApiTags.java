@@ -8,6 +8,7 @@ public class SwaggerApiTags {
             COURSES = "Course Management",
             COLLEGES = "College Management",
             DEPARTMENTS = "Department Management",
-            SCHEDULES = "Schedule Management";
+            SCHEDULES = "Schedule Management",
+            GENERATION = "Timetable Generation";
 
 }

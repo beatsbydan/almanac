@@ -14,4 +14,5 @@ public interface ClassRoomService {
     List<ClassRoom> filterByCollege(String college);
     List<ClassRoom> getClassroomsWithoutCollege();
     List<ClassRoom> filterByNameOrCollege(String key);
+    List<ClassRoom> getAll();
 }
