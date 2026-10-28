@@ -82,7 +82,7 @@ class AuthControllerTest extends BaseIntegrationTest {
                 .when(authMgtService).createUser(any(StudentSignUpRequest.class));
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/auth/register/student")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(toStaffSignUpRequest())))
+                .content(objectMapper.writeValueAsString(toStudentSignUpRequest())))
                 .andExpect(status().isConflict())
                 .andDo(print());
     }
@@ -93,7 +93,7 @@ class AuthControllerTest extends BaseIntegrationTest {
                 .when(authMgtService).createUser(any(StudentSignUpRequest.class));
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/auth/register/student")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(toStaffSignUpRequest())))
+                .content(objectMapper.writeValueAsString(toStudentSignUpRequest())))
                 .andExpect(status().isNotFound())
                 .andDo(print());
     }

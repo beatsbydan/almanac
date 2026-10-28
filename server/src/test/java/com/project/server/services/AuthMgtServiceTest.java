@@ -1,15 +1,20 @@
 package com.project.server.services;
 
 import com.project.server.BaseIntegrationTest;
-import com.project.server.db.models.Department;
+import com.project.server.configs.tenant.TenantContext;
+import com.project.server.db.models.AppUser;
+import com.project.server.db.models.OrgUnit;
 import com.project.server.db.services.appUser.AppUserService;
-import com.project.server.db.services.department.DepartmentService;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.dtos.request.auth.LoginRequest;
 import com.project.server.dtos.request.auth.ResetPasswordRequest;
 import com.project.server.dtos.request.auth.StaffSignUpRequest;
 import com.project.server.dtos.request.auth.StudentSignUpRequest;
+import com.project.server.dtos.request.auth.VerifyEmailRequest;
+import com.project.server.dtos.request.auth.VerifyOtpRequest;
 import com.project.server.dtos.response.AuthResponse;
 import com.project.server.dtos.response.MessageResponse;
+import com.project.server.exceptions.BadRequestException;
 import com.project.server.util.VariableUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +23,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -33,7 +39,9 @@ class AuthMgtServiceTest extends BaseIntegrationTest {
     @Autowired
     private AppUserService appUserService;
     @Autowired
-    private DepartmentService departmentService;
+    private OrgUnitService departmentService;
+    @Autowired
+    private RedissonClient redissonClient;
     private MessageResponse messageResponse;
     private MessageResponse messageResponse2;
     private AuthResponse authResponse;
@@ -45,6 +53,11 @@ class AuthMgtServiceTest extends BaseIntegrationTest {
     void init(){
         httpRequest = mock(HttpServletRequest.class);
         httpResponse = mock(HttpServletResponse.class);
+
+        // Redis isn't covered by @Transactional rollback like the DB is, and the OTP attempt
+        // counter below is deliberately NOT cleared except on a successful verify — so a prior
+        // test's failed attempts for this same (tenant, userId) would otherwise leak in here.
+        redissonClient.getAtomicLong(String.format("otp-attempts:%s:%s", TenantContext.get(), "STAFFID")).delete();
 
         departmentService.save(toDepartment());
         messageResponse = authMgtService.createUser(toStaffSignUpRequest());
@@ -105,6 +118,83 @@ class AuthMgtServiceTest extends BaseIntegrationTest {
         assertNotNull(authResponse);
     }
 
+    @Test
+    @SneakyThrows
+    void should_verify_email() {
+        // mail now sends off the request thread (MailingMgtService is @Async) — this proves the
+        // request itself completes and persists state correctly without waiting on, or failing
+        // because of, the actual SMTP round-trip.
+        messageResponse = authMgtService.verifyEmail(toVerifyEmailRequest(), httpResponse);
+
+        assertNotNull(messageResponse);
+    }
+
+    @Test
+    @SneakyThrows
+    void should_verify_otp_SUCCESS() {
+        authMgtService.verifyEmail(toVerifyEmailRequest(), httpResponse);
+        AppUser user = appUserService.getByUserIdOrEmail(null, toStaffSignUpRequest().getStaffEmail());
+        stubResetTokenCookie(user);
+
+        messageResponse = authMgtService.verifyOtp(
+                VerifyOtpRequest.builder().otp(user.getOtp().getOtp()).build(), httpRequest);
+
+        assertNotNull(messageResponse);
+    }
+
+    @Test
+    @SneakyThrows
+    void should_verify_otp_FAILURE_WRONG_OTP() {
+        authMgtService.verifyEmail(toVerifyEmailRequest(), httpResponse);
+        AppUser user = appUserService.getByUserIdOrEmail(null, toStaffSignUpRequest().getStaffEmail());
+        stubResetTokenCookie(user);
+
+        assertThrows(BadRequestException.class, () ->
+                authMgtService.verifyOtp(VerifyOtpRequest.builder().otp("000000").build(), httpRequest));
+    }
+
+    /**
+     * A 6-digit OTP (900,000 possibilities) is still brute-forceable against an unthrottled
+     * endpoint, so verifyOtp also locks out after MAX_OTP_ATTEMPTS wrong guesses — this proves
+     * that lockout actually triggers, not just that a single wrong guess is rejected.
+     */
+    @Test
+    @SneakyThrows
+    void should_lockOut_afterTooManyIncorrectOtpAttempts() {
+        authMgtService.verifyEmail(toVerifyEmailRequest(), httpResponse);
+        AppUser user = appUserService.getByUserIdOrEmail(null, toStaffSignUpRequest().getStaffEmail());
+        stubResetTokenCookie(user);
+
+        VerifyOtpRequest wrongOtp = VerifyOtpRequest.builder().otp("000000").build();
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BadRequestException.class, () -> authMgtService.verifyOtp(wrongOtp, httpRequest));
+        }
+
+        BadRequestException e = assertThrows(BadRequestException.class,
+                () -> authMgtService.verifyOtp(wrongOtp, httpRequest));
+        assertEquals("Too many incorrect attempts, please request a new OTP.", e.getMessage());
+    }
+
+    private void stubResetTokenCookie(AppUser user) {
+        String resetToken = authMgtService.generateResetToken(user);
+        when(httpRequest.getCookies()).thenReturn(new Cookie[]{new Cookie(VariableUtil.RESET_TOKEN, resetToken)});
+    }
+
+    @Test
+    @SneakyThrows
+    void should_get_lecturers() {
+        var lecturers = authMgtService.getLecturers();
+
+        assertEquals(1, lecturers.size());
+        assertEquals("STAFFID", lecturers.getFirst().getUserId());
+    }
+
+    private VerifyEmailRequest toVerifyEmailRequest(){
+        return VerifyEmailRequest.builder()
+                .userEmail(toStaffSignUpRequest().getStaffEmail())
+                .build();
+    }
+
     private StaffSignUpRequest toStaffSignUpRequest(){
         return StaffSignUpRequest.builder()
                 .staffEmail("staff@email.com")
@@ -125,10 +215,11 @@ class AuthMgtServiceTest extends BaseIntegrationTest {
                 .build();
     }
 
-    private Department toDepartment(){
-        return Department.builder()
+    private OrgUnit toDepartment(){
+        return OrgUnit.builder()
                 .name("department")
                 .shortName("DEPT")
+                .type("Department")
                 .build();
     }
     private LoginRequest toLoginRequest(){

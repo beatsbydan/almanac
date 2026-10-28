@@ -3,6 +3,7 @@ package com.project.server.controllers;
 import com.project.server.dtos.request.auth.*;
 import com.project.server.dtos.response.AuthResponse;
 import com.project.server.dtos.response.MessageResponse;
+import com.project.server.dtos.response.StaffResponse;
 import com.project.server.exceptions.*;
 import com.project.server.services.AuthMgtService;
 import com.project.server.util.AuthorityUtil;
@@ -16,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -42,6 +45,12 @@ public class AuthController {
         return mgtService.login(request, httpResponse);
     }
 
+    @GetMapping("/staff")
+    @PreAuthorize(AuthorityUtil.ADMINISTRATOR)
+    public List<StaffResponse> getLecturers() {
+        return mgtService.getLecturers();
+    }
+
     @PutMapping("/student/update/{userId}")
     @PreAuthorize(AuthorityUtil.STUDENT)
     public MessageResponse updateCourseRepresentative(@PathVariable String userId, @RequestParam(value = "level") String level) throws NotFoundException {
@@ -55,7 +64,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public MessageResponse verifyEmail(@RequestBody @Valid VerifyEmailRequest request, HttpServletResponse httpResponse) throws MailingException, NotFoundException {
+    public MessageResponse verifyEmail(@RequestBody @Valid VerifyEmailRequest request, HttpServletResponse httpResponse) throws NotFoundException {
         return mgtService.verifyEmail(request, httpResponse);
     }
 

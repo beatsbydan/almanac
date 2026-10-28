@@ -2,16 +2,19 @@ package com.project.server.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.server.db.models.AppUser;
-import com.project.server.db.models.Department;
+import com.project.server.db.models.OrgUnit;
 import com.project.server.db.models.Level;
 import com.project.server.db.models.Otp;
+import com.project.server.configs.tenant.TenantContext;
 import com.project.server.db.services.appUser.AppUserService;
-import com.project.server.db.services.department.DepartmentService;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.db.services.level.LevelService;
 import com.project.server.db.services.otp.OtpService;
+import com.project.server.db.services.tenant.TenantService;
 import com.project.server.dtos.request.auth.*;
 import com.project.server.dtos.response.AuthResponse;
 import com.project.server.dtos.response.MessageResponse;
+import com.project.server.dtos.response.StaffResponse;
 import com.project.server.enums.Role;
 import com.project.server.enums.Status;
 import com.project.server.exceptions.*;
@@ -29,6 +32,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RAtomicLong;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -47,6 +52,7 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -64,7 +70,12 @@ public class AuthMgtService implements LogoutHandler {
     private final OtpService otpService;
     private final PasswordEncoder passwordEncoder;
     private final LevelService levelService;
-    private final DepartmentService departmentService;
+    private final OrgUnitService orgUnitService;
+    private final TenantService tenantService;
+    private final RedissonClient redissonClient;
+
+    private static final int MAX_OTP_ATTEMPTS = 5;
+    private static final long DEFAULT_OTP_WINDOW_SECONDS = 900;
 
     @Lazy
     @Autowired
@@ -95,11 +106,25 @@ public class AuthMgtService implements LogoutHandler {
         else if (userService.hasExistingCourseRepresentative(request)) throw new DuplicateEntryException(String.format("%s already has a class representative for %s level.", request.getDepartment(), request.getLevel()));
 
         Level level = levelService.getByLevel(request.getLevel());
-        Department department = departmentService.getByName(request.getDepartment());
+        OrgUnit department = orgUnitService.getChildByName(request.getDepartment());
 
         userService.save(toUserDbModel(request, department, level));
 
         return new MessageResponse("Registration was successful.");
+    }
+
+    /**
+     * Added so an admin triggering bulk generation (GenerationController) has a way to discover
+     * valid lecturer user ids — there was previously no endpoint exposing the staff list at all.
+     */
+    public List<StaffResponse> getLecturers() {
+        return userService.getAllByRole(Role.LECTURER).stream()
+                .map(user -> StaffResponse.builder()
+                        .userId(user.getUserId())
+                        .name(user.getName())
+                        .email(user.getUserEmail())
+                        .build())
+                .toList();
     }
 
     public MessageResponse updateCourseRepresentative(String userId, String level) throws NotFoundException {
@@ -145,7 +170,7 @@ public class AuthMgtService implements LogoutHandler {
         return toAuthResponse(user, accessToken);
     }
 
-    public MessageResponse verifyEmail(VerifyEmailRequest request, HttpServletResponse response) throws NotFoundException, MailingException {
+    public MessageResponse verifyEmail(VerifyEmailRequest request, HttpServletResponse response) throws NotFoundException {
         AppUser user = userService.getByUserIdOrEmail(null, request.getUserEmail());
         String otpValue = createOtp();
 
@@ -178,12 +203,15 @@ public class AuthMgtService implements LogoutHandler {
             throw new Exception("Something went wrong, please try again");
         }
 
-        userService.loadUserByUsername(username);
+        AppUser user = userService.getByUserIdOrEmail(username, null);
 
-        if(!isValidOtp(request.getOtp())){
+        enforceOtpAttemptLimit(user);
+
+        if(!isValidOtp(user, request.getOtp())){
             throw new BadRequestException("OTP has expired, please try again.");
         }
 
+        clearOtpAttempts(user);
         return new MessageResponse("OTP was successfully verified");
     }
 
@@ -246,18 +274,57 @@ public class AuthMgtService implements LogoutHandler {
     }
 
     // OTP
+    /**
+     * java.util.Random is not safe for anything security-sensitive (predictable PRNG state); a
+     * one-time password needs SecureRandom. 6 digits (900,000 possible values) rather than the
+     * previous 4 (9,000) makes brute force meaningfully more expensive on top of the attempt
+     * limit below — belt and suspenders, since either control alone is still a reasonable target.
+     */
     private String createOtp(){
-        Random random = new Random();
+        SecureRandom random = new SecureRandom();
 
-        int otp = random.nextInt(9999) + 1000;
+        int otp = random.nextInt(900000) + 100000;
 
         return String.valueOf(otp);
     }
 
-    private boolean isValidOtp(String otpValue) throws NotFoundException {
-        Otp otp = otpService.findByOtp(otpValue);
+    /**
+     * Checks the OTP against the specific user identified by the reset-token cookie, not just
+     * "does any currently-valid OTP in this tenant equal this value" — the previous
+     * otpService.findByOtp(value) lookup had no ownership check at all, so guessing any other
+     * user's concurrently-active OTP would also pass.
+     */
+    private boolean isValidOtp(AppUser user, String otpValue){
+        Otp otp = user.getOtp();
+        if(otp == null || !otp.getOtp().equals(otpValue)) return false;
 
         return Duration.between(otp.getCreatedAt(), LocalDateTime.now()).getSeconds() < otp.getExpiration();
+    }
+
+    /**
+     * 6 digits still only means 900,000 possibilities — trivially brute-forceable against an
+     * unthrottled endpoint. Counts failed attempts per user in Redis (already used elsewhere for
+     * distributed locks) with a TTL matching the OTP's own validity window, so the lockout expires
+     * naturally alongside the OTP rather than needing separate cleanup.
+     */
+    private void enforceOtpAttemptLimit(AppUser user) throws BadRequestException {
+        RAtomicLong attempts = redissonClient.getAtomicLong(otpAttemptsKey(user));
+        long count = attempts.incrementAndGet();
+        if(count == 1){
+            long windowSeconds = user.getOtp() != null ? user.getOtp().getExpiration() : DEFAULT_OTP_WINDOW_SECONDS;
+            attempts.expire(Duration.ofSeconds(windowSeconds));
+        }
+        if(count > MAX_OTP_ATTEMPTS){
+            throw new BadRequestException("Too many incorrect attempts, please request a new OTP.");
+        }
+    }
+
+    private void clearOtpAttempts(AppUser user){
+        redissonClient.getAtomicLong(otpAttemptsKey(user)).delete();
+    }
+
+    private String otpAttemptsKey(AppUser user){
+        return String.format("otp-attempts:%s:%s", TenantContext.get(), user.getUserId());
     }
 
 
@@ -387,13 +454,14 @@ public class AuthMgtService implements LogoutHandler {
                 .name(request.getName())
                 .build();
     }
-    private AppUser toUserDbModel(StudentSignUpRequest request, Department department, Level level){
+    private AppUser toUserDbModel(StudentSignUpRequest request, OrgUnit department, Level level) throws NotFoundException {
+        String tenantName = tenantService.getById(TenantContext.get()).getName();
         return AppUser.builder()
                 .userId(request.getStudentId().toUpperCase())
                 .userEmail(request.getStudentEmail())
-                .department(department)
+                .orgUnit(department)
                 .level(level)
-                .timeTableFileName(HelperUtil.generateStudentFileName(department.getName(), level.getLevel()))
+                .timeTableFileName(HelperUtil.generateStudentFileName(tenantName, department.getName(), level.getLevel()))
                 .status(Status.ACTIVATED)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.STUDENT)
@@ -401,7 +469,7 @@ public class AuthMgtService implements LogoutHandler {
     }
 
     private AuthResponse toAuthResponse(AppUser user, String token){
-        String department = user.getDepartment() == null ? null : user.getDepartment().getName();
+        String department = user.getOrgUnit() == null ? null : user.getOrgUnit().getName();
         String level = user.getLevel() == null ? null : user.getLevel().getLevel();
         return AuthResponse.builder()
                 .userId(user.getUserId())
