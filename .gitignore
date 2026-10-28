@@ -12,8 +12,17 @@ lerna-debug.log*
 dist-ssr
 *.local
 
+/engine/.venv
+/engine/.pytest_cache
+__pycache__/
+*.pyc
+
 /client/.env
 /server/.env
+
+# Runtime-generated documents (local DocumentStorage adapter output, legacy cron scratch dir)
+/server/documents/
+/server/timetables/
 
 # Editor directories and files
 .vscode/*
