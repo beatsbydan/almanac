@@ -1,17 +1,21 @@
 package com.project.server.cron.services;
 
+import com.project.server.configs.tenant.TenantContext;
 import com.project.server.db.models.*;
 import com.project.server.db.services.classroom.ClassRoomService;
-import com.project.server.db.services.college.CollegeService;
-import com.project.server.db.services.courseCode.CourseCodeService;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.db.services.generationTracker.GenerationTrackerService;
 import com.project.server.db.services.schedule.ScheduleService;
+import com.project.server.db.services.tenant.TenantService;
+import com.project.server.db.services.tenantCalendar.TenantCalendarService;
 import com.project.server.db.services.timetable.TimeTableService;
+import com.project.server.services.storage.DocumentStorage;
 import com.project.server.enums.GenerationStage;
 import com.project.server.enums.Status;
+import com.project.server.exceptions.NotFoundException;
 import com.project.server.exceptions.TimeTableGenerationException;
-import com.project.server.util.VariableUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -22,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -40,8 +45,10 @@ public class TimeTableGenerationCronService {
     private final GenerationTrackerService trackerService;
     private final ScheduleService scheduleService;
     private final ClassRoomService classRoomService;
-    private final CollegeService collegeService;
-    private final CourseCodeService courseCodeService;
+    private final OrgUnitService orgUnitService;
+    private final TenantCalendarService tenantCalendarService;
+    private final DocumentStorage documentStorage;
+    private final TenantService tenantService;
 
     public void generate() throws TimeTableGenerationException {
         Pageable pageable = PageRequest.of(0, 100);
@@ -72,14 +79,14 @@ public class TimeTableGenerationCronService {
 
             Page<Schedule> schedules;
             List<String> classRooms;
-            College college = null;
+            OrgUnit college = null;
 
             if(stage.equals(GenerationStage.UWC)) {
                 classRooms = classRoomService.getClassroomsWithoutCollege().stream().map(ClassRoom::getName).toList();
                 schedules = scheduleService.getUnprocessedUniversityWideSchedules(pageable);
             }
             else {
-                college = collegeService.getByName(stage.name());
+                college = orgUnitService.getRootByName(stage.name());
                 classRooms = classRoomService.findAllByCollege(stage.name()).stream().map(ClassRoom::getName).toList();
                 schedules = scheduleService.getUnprocessedSchedulesByCollege(stage.name(), pageable);
             }
@@ -132,8 +139,18 @@ public class TimeTableGenerationCronService {
 
             populateTable(timeTable, timetable, college, schedules.getContent(), classRooms);
 
-            FileOutputStream outputStream = new FileOutputStream(file);
-            timetable.write(outputStream);
+            ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+            timetable.write(byteOutput);
+            byte[] documentBytes = byteOutput.toByteArray();
+
+            // The local scratch file is still how this method reads back its own in-progress work
+            // across cron ticks (unchanged) — but the copy a client actually downloads now goes
+            // through the storage adapter, so a remote-storage deployment doesn't depend on every
+            // request landing on the one instance that ran the latest cron tick.
+            try (FileOutputStream outputStream = new FileOutputStream(file)) {
+                outputStream.write(documentBytes);
+            }
+            documentStorage.store(TenantContext.get(), timeTable.getFileName(), documentBytes);
 
             timeTable.setStatus(Status.DONE_WITH_GENERATION);
             timeTableService.save(timeTable);
@@ -144,7 +161,7 @@ public class TimeTableGenerationCronService {
         }
     }
 
-    private void populateTable(TimeTable timeTable, XWPFDocument timetableDocument, College college, List<Schedule> schedules, List<String> classRooms){
+    private void populateTable(TimeTable timeTable, XWPFDocument timetableDocument, OrgUnit college, List<Schedule> schedules, List<String> classRooms) throws NotFoundException {
         Map<String, Map<String, List<Schedule>>> groupedSchedules = groupSchedules(schedules);
 
         CTSectPr sectPr = timetableDocument.getDocument().getBody().getSectPr();
@@ -161,8 +178,10 @@ public class TimeTableGenerationCronService {
         pageMar.setHeader(BigInteger.valueOf(1066));
         pageMar.setFooter(BigInteger.valueOf(1066));
 
+        String tenantName = tenantService.getById(TenantContext.get()).getName();
+
         XWPFRun titleRun = createTextRun(timetableDocument);
-        titleRun.setText(String.format("BOWEN UNIVERSITY %s session %s SEMESTER TIMETABLE", timeTable.getSession(), timeTable.getSemester()));
+        titleRun.setText(String.format("%s %s session %s SEMESTER TIMETABLE", tenantName.toUpperCase(), timeTable.getSession(), timeTable.getSemester()));
         titleRun.setBold(true);
         titleRun.setFontSize(20);
         titleRun.addBreak();
@@ -171,7 +190,7 @@ public class TimeTableGenerationCronService {
         collegeRun.setCapitalized(true);
         collegeRun.setBold(true);
         collegeRun.setFontSize(14);
-        collegeRun.setText(college.getName());
+        collegeRun.setText(college != null ? college.getName() : "University Wide Courses");
         collegeRun.addBreak();
 
         for(String day : groupedSchedules.keySet()){
@@ -207,7 +226,7 @@ public class TimeTableGenerationCronService {
                     int duration = endTime - startTime;
 
                     int scheduleCell = getCellByStartTime(startTime);
-                    String courseCodes = String.join(" / ", courseCodeService.getCourseCodesByCourse(schedule.getCourse()).stream().map(CourseCode::getCourseCode).toList());
+                    String courseCodes = String.join(" / ", schedule.getSchedulableUnit().getCodes().stream().map(SchedulableUnitCode::getUnitCode).toList());
 
                     table.getRow(i).getCell(scheduleCell).setText(courseCodes);
                     if (duration == 2) table.getRow(i).getCell(scheduleCell + 1).setText(courseCodes);
@@ -277,6 +296,7 @@ public class TimeTableGenerationCronService {
         scheduleService.saveAll(schedules);
     }
 
+    @SneakyThrows
     private Map<String, Map<String, List<Schedule>>> groupSchedules(List<Schedule> schedules){
         Map<String, Map<String, List<Schedule>>> finalSortedSchedules = new LinkedHashMap<>();
 
@@ -285,7 +305,7 @@ public class TimeTableGenerationCronService {
             groupedByDay.computeIfAbsent(schedule.getDay(), k -> new ArrayList<>()).add(schedule);
         }
 
-        for(String day : VariableUtil.DAYS){
+        for(String day : tenantCalendarService.getDaysInUse(TenantContext.get())){
             List<Schedule> dailySchedules = groupedByDay.get(day);
             if(dailySchedules == null || dailySchedules.isEmpty()) continue;
 

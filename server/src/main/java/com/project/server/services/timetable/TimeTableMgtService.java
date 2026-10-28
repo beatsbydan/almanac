@@ -3,8 +3,10 @@ package com.project.server.services.timetable;
 import com.project.server.db.models.AppUser;
 import com.project.server.db.models.GenerationTracker;
 import com.project.server.db.models.TimeTable;
+import com.project.server.configs.tenant.TenantContext;
 import com.project.server.db.services.appUser.AppUserService;
 import com.project.server.db.services.generationTracker.GenerationTrackerService;
+import com.project.server.db.services.tenant.TenantService;
 import com.project.server.db.services.timetable.TimeTableService;
 import com.project.server.dtos.request.TimetableRequest;
 import com.project.server.dtos.response.DocumentResponse;
@@ -13,17 +15,14 @@ import com.project.server.dtos.response.TimeTableResponse;
 import com.project.server.enums.Semester;
 import com.project.server.enums.Status;
 import com.project.server.exceptions.*;
+import com.project.server.services.storage.DocumentStorage;
 import com.project.server.util.HelperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.util.Objects;
 import java.util.Optional;
-
-import static com.project.server.util.VariableUtil.TIME_TABLE_DIRECTORY;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +32,10 @@ public class TimeTableMgtService {
     private final TimeTableGenerationService timeTableGenerationService;
     private final AppUserService userService;
     private final GenerationTrackerService generationTrackerService;
+    private final DocumentStorage documentStorage;
+    private final TenantService tenantService;
 
-    public MessageResponse createTimeTable(TimetableRequest request) throws DuplicateEntryException, BadRequestException {
+    public MessageResponse createTimeTable(TimetableRequest request) throws DuplicateEntryException, BadRequestException, NotFoundException {
         if(timeTableService.activeTimeTableExists()) throw new DuplicateEntryException("There's already an active timetable.");
         else if(timeTableService.existsBySessionAndSemester(request)) throw new BadRequestException("There's a timetable for this session and semester.");
 
@@ -101,28 +102,25 @@ public class TimeTableMgtService {
         return timeTableGenerationService.generate(timeTable, user);
     }
 
-    public FileSystemResource downloadGeneralTimeTable() throws ScheduleUpsertException, BadRequestException, NotFoundException {
+    public DocumentResponse downloadGeneralTimeTable() throws ScheduleUpsertException, BadRequestException, NotFoundException {
         TimeTable timeTable = timeTableService.getActiveTimeTable();
         Status status = timeTable.getStatus();
         if(status.equals(Status.PENDING_GENERATION)) throw new BadRequestException("Generation has not been initiated for this timetable");
         else if(status.equals(Status.READY_FOR_GENERATION)) throw new BadRequestException("Generation is in progress, please check back later..");
         else if(status.equals(Status.FAILED_TO_GENERATE)) throw new BadRequestException("Generation failed, Please retry..");
 
-        File file = new File(TIME_TABLE_DIRECTORY, timeTable.getFileName());
-        if(!file.exists()){
-            throw new NotFoundException("Timetable -> " + timeTable.getFileName() + " is unavailable at this time.");
-        }
-
-        return new FileSystemResource(file);
+        byte[] content = documentStorage.retrieve(TenantContext.get(), timeTable.getFileName());
+        return new DocumentResponse(content, timeTable.getFileName());
     }
 
-    private TimeTable toCreateDbModel(TimetableRequest request){
+    private TimeTable toCreateDbModel(TimetableRequest request) throws NotFoundException {
         String session = String.join("-", request.getSession().split("/"));
+        String tenantName = tenantService.getById(TenantContext.get()).getName();
         return TimeTable.builder()
                 .session(session)
                 .creationStartDate(HelperUtil.parseDate(request.getCreationStartDate()))
                 .creationEndDate(HelperUtil.parseDate(request.getCreationEndDate()))
-                .fileName(HelperUtil.generateFilename(session, request.getSemester()))
+                .fileName(HelperUtil.generateFilename(tenantName, session, request.getSemester()))
                 .semester(Semester.valueOf(request.getSemester()))
                 .build();
     }

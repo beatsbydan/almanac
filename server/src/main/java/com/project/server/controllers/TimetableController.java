@@ -12,7 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,10 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 
 @RestController
 @RequestMapping("/api/v1/timetables")
@@ -37,7 +32,7 @@ public class TimetableController {
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize(AuthorityUtil.ADMINISTRATOR)
-    public MessageResponse createTimeTable(@Valid @RequestBody TimetableRequest request) throws DuplicateEntryException, BadRequestException {
+    public MessageResponse createTimeTable(@Valid @RequestBody TimetableRequest request) throws DuplicateEntryException, BadRequestException, NotFoundException {
         return mgtService.createTimeTable(request);
     }
 
@@ -88,17 +83,15 @@ public class TimetableController {
 
     @GetMapping("/download/general")
     @PreAuthorize(AuthorityUtil.ADMINISTRATOR)
-    public ResponseEntity<FileSystemResource> downloadGeneralTimeTable() throws NotFoundException, IOException, ScheduleUpsertException, BadRequestException {
-        FileSystemResource resource = mgtService.downloadGeneralTimeTable();
-        File file = resource.getFile();
+    public ResponseEntity<byte[]> downloadGeneralTimeTable() throws NotFoundException, ScheduleUpsertException, BadRequestException {
+        DocumentResponse documentResponse = mgtService.downloadGeneralTimeTable();
 
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_TYPE, Files.probeContentType(file.toPath()));
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"");
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + documentResponse.getFileName() + "\"");
 
         return ResponseEntity.ok()
                 .headers(headers)
-                .contentLength(file.length())
-                .body(resource);
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                .body(documentResponse.getBytesArr());
     }
 }
