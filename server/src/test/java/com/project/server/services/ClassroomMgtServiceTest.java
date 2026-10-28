@@ -2,9 +2,9 @@ package com.project.server.services;
 
 import com.project.server.BaseIntegrationTest;
 import com.project.server.db.models.ClassRoom;
-import com.project.server.db.models.College;
+import com.project.server.db.models.OrgUnit;
 import com.project.server.db.services.classroom.ClassRoomService;
-import com.project.server.db.services.college.CollegeService;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.dtos.request.ClassroomRequest;
 import com.project.server.dtos.response.ClassroomResponse;
 import com.project.server.dtos.response.MessageResponse;
@@ -23,13 +23,13 @@ class ClassroomMgtServiceTest extends BaseIntegrationTest {
     @Autowired
     private ClassRoomService classRoomService;
     @Autowired
-    private CollegeService collegeService;
+    private OrgUnitService orgUnitService;
     private MessageResponse messageResponse;
 
     @BeforeEach
     @SneakyThrows
     void init(){
-        collegeService.save(College.builder().name(toClassRoomRequest().getCollege()).shortName("DEPT").build());
+        orgUnitService.save(OrgUnit.builder().name(toClassRoomRequest().getCollege()).shortName("DEPT").type("College").build());
         messageResponse = classroomMgtService.createClassroom(toClassRoomRequest());
     }
 

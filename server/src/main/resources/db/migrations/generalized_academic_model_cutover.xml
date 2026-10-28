@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The actual cutover: migrates every existing College/Department/Course/CourseCode/
+        CourseParticipant row into the generalized OrgUnit/SchedulableUnit model introduced in
+        generalized_academic_model.xml, repoints classrooms/users/schedules at the migrated rows,
+        then retires the old tables. Guarded per-step on the source table still existing, so a
+        database that already went through this (old tables already dropped) safely no-ops
+        rather than erroring on a SELECT against a table that's gone.
+    -->
+
+    <changeSet id="add_org_unit_and_schedulable_unit_fk_columns" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="colleges"/>
+        </preConditions>
+        <addColumn tableName="classrooms">
+            <column name="org_unit_id" type="BIGINT"/>
+        </addColumn>
+        <addColumn tableName="users">
+            <column name="org_unit_id" type="BIGINT"/>
+        </addColumn>
+        <addColumn tableName="schedules">
+            <column name="schedulable_unit_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="classrooms" baseColumnNames="org_unit_id" constraintName="fk_classroom_on_org_unit" referencedTableName="org_units" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="users" baseColumnNames="org_unit_id" constraintName="fk_user_on_org_unit" referencedTableName="org_units" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="schedules" baseColumnNames="schedulable_unit_id" constraintName="fk_schedule_on_schedulable_unit" referencedTableName="schedulable_units" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="migrate_colleges_to_org_units" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="colleges"/>
+        </preConditions>
+        <sql>
+            INSERT INTO org_units (code, tenant_id, name, short_name, type, parent_id, created_at, updated_at)
+            SELECT code, tenant_id, name, short_name, 'College', NULL, created_at, updated_at
+            FROM colleges;
+        </sql>
+    </changeSet>
+
+    <changeSet id="migrate_departments_to_org_units" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="departments"/>
+        </preConditions>
+        <sql>
+            INSERT INTO org_units (code, tenant_id, name, short_name, type, parent_id, created_at, updated_at)
+            SELECT d.code, d.tenant_id, d.name, d.short_name, 'Department', parent_ou.id, d.created_at, d.updated_at
+            FROM departments d
+            LEFT JOIN colleges c ON c.id = d.college_id
+            LEFT JOIN org_units parent_ou ON parent_ou.code = c.code;
+        </sql>
+    </changeSet>
+
+    <changeSet id="migrate_courses_to_schedulable_units" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="courses"/>
+        </preConditions>
+        <sql>
+            INSERT INTO schedulable_units (code, tenant_id, title, unit, batched, shared, general, expected_class_size, created_at, updated_at)
+            SELECT code, tenant_id, course_title, course_unit, batched, shared, general, expected_class_size, created_at, updated_at
+            FROM courses;
+        </sql>
+    </changeSet>
+
+    <changeSet id="migrate_course_codes_to_schedulable_unit_codes" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="course_codes"/>
+        </preConditions>
+        <sql>
+            INSERT INTO schedulable_unit_codes (code, tenant_id, unit_code, schedulable_unit_id, created_at, updated_at)
+            SELECT cc.code, cc.tenant_id, cc.course_code, su.id, cc.created_at, cc.updated_at
+            FROM course_codes cc
+            JOIN courses co ON co.id = cc.course_id
+            JOIN schedulable_units su ON su.code = co.code;
+        </sql>
+    </changeSet>
+
+    <changeSet id="migrate_course_participants_to_schedulable_unit_participants" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="course_participants"/>
+        </preConditions>
+        <sql>
+            INSERT INTO schedulable_unit_participants (code, tenant_id, level_id, schedulable_unit_id, created_at, updated_at)
+            SELECT cp.code, cp.tenant_id, cp.level_id, su.id, cp.created_at, cp.updated_at
+            FROM course_participants cp
+            JOIN courses co ON co.id = cp.course_id
+            JOIN schedulable_units su ON su.code = co.code;
+        </sql>
+    </changeSet>
+
+    <changeSet id="migrate_course_participant_departments_to_org_units" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="course_participant_departments"/>
+        </preConditions>
+        <sql>
+            INSERT INTO schedulable_unit_participant_org_units (participant_id, org_unit_id)
+            SELECT sup.id, ou.id
+            FROM course_participant_departments cpd
+            JOIN course_participants cp ON cp.id = cpd.course_participant_id
+            JOIN schedulable_unit_participants sup ON sup.code = cp.code
+            JOIN departments d ON d.id = cpd.department_id
+            JOIN org_units ou ON ou.code = d.code;
+        </sql>
+    </changeSet>
+
+    <changeSet id="backfill_classroom_and_user_org_unit" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="colleges"/>
+        </preConditions>
+        <sql>
+            UPDATE classrooms
+            SET org_unit_id = ou.id
+            FROM colleges c
+            JOIN org_units ou ON ou.code = c.code
+            WHERE classrooms.college_id = c.id;
+
+            UPDATE users
+            SET org_unit_id = ou.id
+            FROM departments d
+            JOIN org_units ou ON ou.code = d.code
+            WHERE users.department_id = d.id;
+        </sql>
+    </changeSet>
+
+    <changeSet id="backfill_schedule_schedulable_unit" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="courses"/>
+        </preConditions>
+        <sql>
+            UPDATE schedules
+            SET schedulable_unit_id = su.id
+            FROM courses co
+            JOIN schedulable_units su ON su.code = co.code
+            WHERE schedules.course_id = co.id;
+        </sql>
+        <addNotNullConstraint tableName="schedules" columnName="schedulable_unit_id" columnDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet id="drop_old_academic_fk_columns" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="classrooms" columnName="college_id"/>
+        </preConditions>
+        <dropForeignKeyConstraint baseTableName="classrooms" constraintName="fk_classroom_on_college"/>
+        <dropColumn tableName="classrooms" columnName="college_id"/>
+        <dropForeignKeyConstraint baseTableName="users" constraintName="fk_user_on_department"/>
+        <dropColumn tableName="users" columnName="department_id"/>
+        <dropForeignKeyConstraint baseTableName="schedules" constraintName="fk_schedule_on_course"/>
+        <dropColumn tableName="schedules" columnName="course_id"/>
+    </changeSet>
+
+    <changeSet id="drop_old_academic_tables" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="colleges"/>
+        </preConditions>
+        <dropTable tableName="course_participant_departments"/>
+        <dropTable tableName="course_participants"/>
+        <dropTable tableName="course_codes"/>
+        <dropTable tableName="courses"/>
+        <dropTable tableName="departments"/>
+        <dropTable tableName="colleges"/>
+    </changeSet>
+
+</databaseChangeLog>

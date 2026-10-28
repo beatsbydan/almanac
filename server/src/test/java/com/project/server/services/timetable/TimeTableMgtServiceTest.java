@@ -2,10 +2,10 @@ package com.project.server.services.timetable;
 
 import com.project.server.BaseIntegrationTest;
 import com.project.server.db.models.ClassRoom;
-import com.project.server.db.models.Course;
+import com.project.server.db.models.SchedulableUnit;
 import com.project.server.db.models.TimeTable;
 import com.project.server.db.services.classroom.ClassRoomService;
-import com.project.server.db.services.course.CourseService;
+import com.project.server.db.services.schedulableUnit.SchedulableUnitService;
 import com.project.server.db.services.timetable.TimeTableService;
 import com.project.server.dtos.request.*;
 import com.project.server.dtos.request.auth.StaffSignUpRequest;
@@ -49,7 +49,7 @@ class TimeTableMgtServiceTest extends BaseIntegrationTest {
     @Autowired
     private ClassRoomService classRoomService;
     @Autowired
-    private CourseService courseService;
+    private SchedulableUnitService courseService;
 
     List<String> classroomCodes = new ArrayList<>();
     private MessageResponse messageResponse;
@@ -68,7 +68,7 @@ class TimeTableMgtServiceTest extends BaseIntegrationTest {
         classroomMgtService.createClassroom(toClassRoomRequest());
         classroomCodes = classRoomService.findAllByCollege("college").stream().map(ClassRoom::getCode).toList();
         courseMgtService.upsertCourse(toCourseRequest(), Type.CREATE, null);
-        Course course = courseService.findByTitle(toCourseRequest().getCourseTitle());
+        SchedulableUnit course = courseService.getByTitle(toCourseRequest().getCourseTitle());
         scheduleMgtService.createSchedule(toScheduleRequest(course.getCode(), classroomCodes));
     }
 

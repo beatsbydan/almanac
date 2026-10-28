@@ -16,25 +16,25 @@ public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
 
     @Query("""
             SELECT c FROM ClassRoom c
-            LEFT JOIN FETCH c.college clg
-            LEFT JOIN FETCH clg.departments d
-            WHERE clg.name = :college
-            OR clg.shortName = :college
+            LEFT JOIN FETCH c.orgUnit o
+            LEFT JOIN FETCH o.children ch
+            WHERE o.name = :orgUnit
+            OR o.shortName = :orgUnit
     """)
-    List<ClassRoom> findAllByCollege(@Param("college") String college);
+    List<ClassRoom> findAllByCollege(@Param("orgUnit") String orgUnit);
 
-    @Query("SELECT c FROM ClassRoom c WHERE c.college.shortName = :college")
-    List<ClassRoom> filterByCollege(@Param("college") String college);
+    @Query("SELECT c FROM ClassRoom c WHERE c.orgUnit.shortName = :orgUnit")
+    List<ClassRoom> filterByCollege(@Param("orgUnit") String orgUnit);
 
-    @Query("SELECT c FROM ClassRoom c WHERE c.college IS NULL")
+    @Query("SELECT c FROM ClassRoom c WHERE c.orgUnit IS NULL")
     List<ClassRoom> findAllWithoutCollege();
 
     @Query("""
         SELECT c FROM ClassRoom c
-        LEFT JOIN c.college col
+        LEFT JOIN c.orgUnit o
         WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :key, '%'))
-        OR LOWER(col.name) LIKE LOWER(CONCAT('%', :key, '%'))
-        OR LOWER(col.shortName) LIKE LOWER(CONCAT('%', :key, '%'))
+        OR LOWER(o.name) LIKE LOWER(CONCAT('%', :key, '%'))
+        OR LOWER(o.shortName) LIKE LOWER(CONCAT('%', :key, '%'))
     """)
     List<ClassRoom> filterByNameOrCollege(@Param("key") String key);
 }

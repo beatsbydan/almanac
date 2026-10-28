@@ -3,11 +3,7 @@ package com.project.server.services;
 import com.project.server.db.models.AppUser;
 import com.project.server.db.models.Level;
 import com.project.server.db.services.appUser.AppUserService;
-import com.project.server.db.services.college.CollegeService;
-import com.project.server.db.services.department.DepartmentService;
 import com.project.server.db.services.level.LevelService;
-import com.project.server.dtos.request.CollegeRequest;
-import com.project.server.dtos.request.DepartmentRequest;
 import com.project.server.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -21,10 +17,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ServerStartUpMgtService implements CommandLineRunner {
     private final LevelService levelService;
-    private final CollegeMgtService collegeMgtService;
-    private final DepartmentMgtService departmentMgtService;
-    private final CollegeService collegeService;
-    private final DepartmentService departmentService;
     private final AppUserService userService;
     private final PasswordEncoder passwordEncoder;
 

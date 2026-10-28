@@ -17,7 +17,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     @Query("SELECT u FROM AppUser u WHERE u.userEmail = :email OR u.userId =:id")
     Optional<AppUser> findByEmailOrId(@Param("email") String userEmail, @Param(("id")) String userId);
 
-    @Query("SELECT u FROM AppUser u WHERE u.level.level = :level AND u.department.name = :department")
+    @Query("SELECT u FROM AppUser u WHERE u.level.level = :level AND u.orgUnit.name = :department")
     Optional<AppUser> hasExistingCourseRepresentative(@Param("department") String department, @Param("level") String level);
 
     @Query("SELECT u FROM AppUser u WHERE u.role = :role")

@@ -22,7 +22,7 @@ public class AppUserServiceImpl implements AppUserService{
 
     @Override
     public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
-        return repository.findByUserId(userId)
+        return repository.findByUserId(normalizeUserId(userId))
                 .orElseThrow(() -> new UsernameNotFoundException(String.format("Staff with ID: %s was not found ", userId)));
     }
 
@@ -33,23 +33,32 @@ public class AppUserServiceImpl implements AppUserService{
 
     @Override
     public boolean isExistingUser(StaffSignUpRequest request) {
-        return repository.findByEmailOrId(request.getStaffEmail(), request.getStaffId()).isPresent();
+        return repository.findByEmailOrId(request.getStaffEmail(), normalizeUserId(request.getStaffId())).isPresent();
     }
 
     @Override
     public boolean isExistingUser(StudentSignUpRequest request) {
-        return repository.findByEmailOrId(request.getStudentEmail(), request.getStudentId()).isPresent();
+        return repository.findByEmailOrId(request.getStudentEmail(), normalizeUserId(request.getStudentId())).isPresent();
     }
 
     @Override
     public AppUser getByUserIdOrEmail(String userId, String userEmail) throws NotFoundException {
-        return repository.findByEmailOrId(userEmail, userId)
+        return repository.findByEmailOrId(userEmail, normalizeUserId(userId))
                 .orElseThrow(() -> new NotFoundException("User not found.."));
     }
 
     @Override
     public Optional<AppUser> getByUserIdOpt(String userId) {
-        return repository.findByEmailOrId(userId, null);
+        return repository.findByEmailOrId(null, normalizeUserId(userId));
+    }
+
+    /**
+     * Staff/student IDs are stored upper-cased (see AuthMgtService#toUserDbModel); every lookup
+     * has to normalize to the same case. MySQL's default case-insensitive collation hid the
+     * mismatch when this normalization was missing on the read side — Postgres doesn't.
+     */
+    private String normalizeUserId(String userId){
+        return userId == null ? null : userId.toUpperCase();
     }
 
     @Override

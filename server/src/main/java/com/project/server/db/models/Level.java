@@ -14,6 +14,6 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 @AllArgsConstructor
 @NoArgsConstructor
-public class Level extends BaseModel {
+public class Level extends TenantOwnedModel {
     private String level;
 }

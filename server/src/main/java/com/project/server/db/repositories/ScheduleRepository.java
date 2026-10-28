@@ -1,6 +1,5 @@
 package com.project.server.db.repositories;
 
-import com.project.server.db.models.CourseParticipant;
 import com.project.server.db.models.Schedule;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,8 +17,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     Schedule findByCode(String code);
     @Query("""
             SELECT DISTINCT s FROM Schedule s
-            LEFT JOIN s.course c
-            LEFT JOIN c.courseParticipants cp
+            LEFT JOIN s.schedulableUnit c
+            LEFT JOIN c.participants cp
             WHERE :startTime < s.endTime
             AND :endTime > s.startTime
             AND s.day = :day
@@ -33,10 +32,10 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     );
     @Query("""
             SELECT DISTINCT s FROM Schedule s
-            LEFT JOIN s.course c
-            LEFT JOIN c.courseParticipants cp
+            LEFT JOIN s.schedulableUnit c
+            LEFT JOIN c.participants cp
             LEFT JOIN cp.level l
-            LEFT JOIN cp.departments d
+            LEFT JOIN cp.orgUnits d
             WHERE l.level = :level
             AND d.name = :department
             """)
@@ -44,7 +43,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("level") String level,
             @Param("department") String department);
 
-    @Query("SELECT s FROM Schedule s WHERE s.course.courseTitle = :title")
+    @Query("SELECT s FROM Schedule s WHERE s.schedulableUnit.title = :title")
     Schedule findByCourse(@Param("title") String courseTitle);
     @Query("SELECT s FROM Schedule s WHERE s.appUser.userId = :userId")
     List<Schedule> findByLecturer(@Param("userId") String userId);
@@ -52,14 +51,14 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("""
         SELECT s.id FROM Schedule s
         LEFT JOIN s.classRooms cl
-        LEFT JOIN cl.college clg
-        WHERE clg.shortName = :college
+        LEFT JOIN cl.orgUnit org
+        WHERE org.shortName = :college
         AND s.processedForGeneration = false
     """)
     Page<Long> findUnprocessedScheduleIdsByCollege(@Param("college") String college, Pageable pageable);
     @Query("""
         SELECT DISTINCT s FROM Schedule s
-        LEFT JOIN FETCH s.course c
+        LEFT JOIN FETCH s.schedulableUnit c
         LEFT JOIN FETCH s.classRooms cl
         WHERE s.id IN :ids
     """)
@@ -67,14 +66,14 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     @Query("""
         SELECT s.id FROM Schedule s
-        LEFT JOIN s.course c
+        LEFT JOIN s.schedulableUnit c
         WHERE c.general = true
         AND s.processedForGeneration = false
     """)
     Page<Long> findUnprocessedUniversityWideScheduleIds(Pageable pageable);
     @Query("""
         SELECT DISTINCT s FROM Schedule s
-        LEFT JOIN FETCH s.course c
+        LEFT JOIN FETCH s.schedulableUnit c
         LEFT JOIN FETCH s.classRooms cl
         WHERE s.id IN :ids
     """)

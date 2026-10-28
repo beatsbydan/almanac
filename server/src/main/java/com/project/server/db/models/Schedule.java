@@ -12,7 +12,7 @@ import java.util.List;
 @Table(name = "schedules")
 @NoArgsConstructor
 @AllArgsConstructor
-public class Schedule extends BaseModel{
+public class Schedule extends TenantOwnedModel{
     private String day;
 
     private Integer startTime;
@@ -26,10 +26,10 @@ public class Schedule extends BaseModel{
 
     @OneToOne
     @JoinColumn(
-            name = "course_id",
+            name = "schedulable_unit_id",
             referencedColumnName = "id"
     )
-    private Course course;
+    private SchedulableUnit schedulableUnit;
 
     @ManyToOne
     @JoinColumn(

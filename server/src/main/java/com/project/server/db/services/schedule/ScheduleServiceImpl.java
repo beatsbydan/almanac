@@ -1,7 +1,7 @@
 package com.project.server.db.services.schedule;
 
 import com.project.server.db.models.AppUser;
-import com.project.server.db.models.CourseParticipant;
+import com.project.server.db.models.SchedulableUnitParticipant;
 import com.project.server.db.models.Schedule;
 import com.project.server.db.repositories.ScheduleRepository;
 import com.project.server.exceptions.NotFoundException;
@@ -41,7 +41,7 @@ public class ScheduleServiceImpl implements ScheduleService{
     public List<Schedule> getByCourseRepresentative(AppUser courseRepresentative) {
         return repository.findByCourseRepresentative(
                 courseRepresentative.getLevel().getLevel(),
-                courseRepresentative.getDepartment().getName()
+                courseRepresentative.getOrgUnit().getName()
         );
     }
 
@@ -71,9 +71,9 @@ public class ScheduleServiceImpl implements ScheduleService{
     }
 
     @Override
-    public boolean hasScheduleAtTime(int startTime, int endTime, List<CourseParticipant> participants, String day) {
+    public boolean hasScheduleAtTime(int startTime, int endTime, List<SchedulableUnitParticipant> participants, String day) {
         log.info("Checking startTime: {}, endTime: {}, day: {}", startTime, endTime, day);
-        List<Long> participantIds = participants.stream().map(CourseParticipant::getId).toList();
+        List<Long> participantIds = participants.stream().map(SchedulableUnitParticipant::getId).toList();
 
         List<Schedule> schedules = repository.findConflictingSchedules(startTime, endTime, participantIds, day);
         log.info("found:{} schedules", schedules.size());

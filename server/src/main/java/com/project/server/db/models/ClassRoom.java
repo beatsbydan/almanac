@@ -12,14 +12,14 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ClassRoom extends BaseModel{
+public class ClassRoom extends TenantOwnedModel{
     private String name;
 
     private Integer capacity;
 
     @ManyToOne
-    @JoinColumn(name = "college_id", referencedColumnName = "id")
-    private College college;
+    @JoinColumn(name = "org_unit_id", referencedColumnName = "id")
+    private OrgUnit orgUnit;
 
     @ManyToMany(mappedBy = "classRooms")
     private List<Schedule> schedules;

@@ -1,7 +1,7 @@
 package com.project.server.services;
 
-import com.project.server.db.models.College;
-import com.project.server.db.services.college.CollegeService;
+import com.project.server.db.models.OrgUnit;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.dtos.request.CollegeRequest;
 import com.project.server.dtos.response.CollegeResponse;
 import com.project.server.dtos.response.MessageResponse;
@@ -14,49 +14,55 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * "College" here is an OrgUnit with no parent (a root org unit) — generalized per the Blueprint's
+ * OrgUnit model, kept behind this unchanged request/response contract so nothing calling this
+ * service (controller, tests) had to change.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CollegeMgtService {
-    private final CollegeService collegeService;
+    private final OrgUnitService orgUnitService;
 
     public MessageResponse createCollege(CollegeRequest request) throws DuplicateEntryException{
-        if(collegeService.isExistingCollege(request)) throw new DuplicateEntryException("College already exists");
+        if(orgUnitService.isExistingRoot(request.getCollegeName(), request.getCollegeShortName())) throw new DuplicateEntryException("College already exists");
 
-        collegeService.save(toCreateDbModel(request));
+        orgUnitService.save(toCreateDbModel(request));
 
         return new MessageResponse("College created successfully.");
     }
 
     public MessageResponse updateCollege(String code, CollegeRequest request) throws NotFoundException {
-        College college = collegeService.getByCode(code);
+        OrgUnit college = orgUnitService.getByCode(code);
 
-        collegeService.save(toUpdateDbModel(college, request));
+        orgUnitService.save(toUpdateDbModel(college, request));
 
         return new MessageResponse("College created successfully.");
     }
 
     public List<CollegeResponse> getColleges(){
-        return toResponse(collegeService.getAllColleges());
+        return toResponse(orgUnitService.getRoots());
     }
 
-    private College toCreateDbModel(CollegeRequest request){
-        return College.builder()
+    private OrgUnit toCreateDbModel(CollegeRequest request){
+        return OrgUnit.builder()
                 .name(request.getCollegeName())
                 .shortName(request.getCollegeShortName())
+                .type("College")
                 .build();
     }
 
-    private College toUpdateDbModel(College college, CollegeRequest request){
+    private OrgUnit toUpdateDbModel(OrgUnit college, CollegeRequest request){
         college.setName(request.getCollegeName());
         college.setShortName(request.getCollegeShortName());
 
         return college;
     }
 
-    private List<CollegeResponse> toResponse(List<College> colleges){
+    private List<CollegeResponse> toResponse(List<OrgUnit> colleges){
         List<CollegeResponse> responses = new ArrayList<>();
-        for(College college : colleges){
+        for(OrgUnit college : colleges){
             responses.add(CollegeResponse.builder()
                             .code(college.getCode())
                     .collegeShortName(college.getShortName())

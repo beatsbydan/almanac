@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="create_tenant_calendars_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="tenant_calendars"/>
+            </not>
+        </preConditions>
+        <createTable tableName="tenant_calendars">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_tenant_calendar" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_tenant_calendar" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="BIGINT">
+                <constraints unique="true" uniqueConstraintName="uk_tenant_calendar_tenant" nullable="false"/>
+            </column>
+            <column name="days_in_use" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_times" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="durations" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_end_hour" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="tenant_calendars" baseColumnNames="tenant_id" constraintName="fk_tenant_calendar_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="create_blackout_windows_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="blackout_windows"/>
+            </not>
+        </preConditions>
+        <createTable tableName="blackout_windows">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_blackout_window" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_blackout_window" nullable="false"/>
+            </column>
+            <column name="tenant_calendar_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="day" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_time" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="VARCHAR(255)"/>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="blackout_windows" baseColumnNames="tenant_calendar_id" constraintName="fk_blackout_window_on_tenant_calendar" referencedTableName="tenant_calendars" referencedColumnNames="id"/>
+    </changeSet>
+
+    <!--
+        Seeds tenant-zero's calendar to reproduce the exact values that used to be hardcoded in
+        VariableUtil (Monday-Friday, 8am-5pm hourly slots, 1/2-hour durations, 6pm cutoff) and the
+        Wednesday 10am-noon chapel/assembly check that used to live inline in ScheduleMgtService —
+        so existing behavior for the existing tenant is unchanged, just data-driven now.
+    -->
+    <changeSet id="seed_default_tenant_calendar" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM tenant_calendars tc JOIN tenants t ON t.id = tc.tenant_id WHERE t.slug = 'default'</sqlCheck>
+        </preConditions>
+        <insert tableName="tenant_calendars">
+            <column name="code" value="CAL0001"/>
+            <column name="tenant_id" valueComputed="(SELECT id FROM tenants WHERE slug = 'default')"/>
+            <column name="days_in_use" value="Mondays,Tuesdays,Wednesdays,Thursdays,Fridays"/>
+            <column name="period_times" value="8:00am,9:00am,10:00am,11:00am,12:00pm,13:00pm,14:00pm,15:00pm,16:00pm,17:00pm"/>
+            <column name="durations" value="1 hour,2 hours"/>
+            <column name="max_end_hour" valueNumeric="18"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="blackout_windows">
+            <column name="code" value="BLK0001"/>
+            <column name="tenant_calendar_id" valueComputed="(SELECT id FROM tenant_calendars WHERE code = 'CAL0001')"/>
+            <column name="day" value="Wednesdays"/>
+            <column name="start_time" valueNumeric="10"/>
+            <column name="end_time" valueNumeric="12"/>
+            <column name="label" value="Chapel / Assembly"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

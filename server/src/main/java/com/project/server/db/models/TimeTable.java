@@ -16,7 +16,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TimeTable extends BaseModel{
+public class TimeTable extends TenantOwnedModel{
     private String fileName;
 
     @Builder.Default

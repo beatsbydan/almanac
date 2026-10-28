@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Adds tenant_id to every table owned by TenantOwnedModel entities. Deliberately NOT folded
+        into the original createTable changesets for these tables — those already ran (and are
+        guarded by "if table doesn't exist" preconditions) against any database that predates this
+        change, so editing them wouldn't actually add the column anywhere it's needed. Each table
+        gets: a nullable column, a backfill onto the default tenant (so pre-existing rows don't
+        become orphaned), then NOT NULL + the FK, in that order because the column has to be
+        populated before either constraint can be added.
+    -->
+
+    <changeSet id="add_tenant_id_to_colleges" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="colleges" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="colleges">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE colleges SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="colleges" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="colleges" baseColumnNames="tenant_id" constraintName="fk_college_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_generation_trackers" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="generation_trackers" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="generation_trackers">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE generation_trackers SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="generation_trackers" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="generation_trackers" baseColumnNames="tenant_id" constraintName="fk_generation_tracker_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_departments" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="departments" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="departments">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE departments SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="departments" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="departments" baseColumnNames="tenant_id" constraintName="fk_department_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_timetables" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="timetables" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="timetables">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE timetables SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="timetables" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="timetables" baseColumnNames="tenant_id" constraintName="fk_timetable_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_otps" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="otps" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="otps">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE otps SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="otps" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="otps" baseColumnNames="tenant_id" constraintName="fk_otp_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_classrooms" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="classrooms" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="classrooms">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE classrooms SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="classrooms" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="classrooms" baseColumnNames="tenant_id" constraintName="fk_classroom_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_courses" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="courses" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="courses">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE courses SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="courses" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="courses" baseColumnNames="tenant_id" constraintName="fk_course_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_levels" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="levels" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="levels">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE levels SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="levels" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="levels" baseColumnNames="tenant_id" constraintName="fk_level_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_course_codes" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="course_codes" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="course_codes">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE course_codes SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="course_codes" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="course_codes" baseColumnNames="tenant_id" constraintName="fk_course_code_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_course_participants" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="course_participants" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="course_participants">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE course_participants SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="course_participants" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="course_participants" baseColumnNames="tenant_id" constraintName="fk_course_participant_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_users" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE users SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="users" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="users" baseColumnNames="tenant_id" constraintName="fk_user_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_schedules" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="schedules" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="schedules">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE schedules SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="schedules" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="schedules" baseColumnNames="tenant_id" constraintName="fk_schedule_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="add_tenant_id_to_schedule_combinations" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="schedule_combinations" columnName="tenant_id"/></not>
+        </preConditions>
+        <addColumn tableName="schedule_combinations">
+            <column name="tenant_id" type="BIGINT"/>
+        </addColumn>
+        <sql>UPDATE schedule_combinations SET tenant_id = (SELECT id FROM tenants WHERE slug = 'default') WHERE tenant_id IS NULL;</sql>
+        <addNotNullConstraint tableName="schedule_combinations" columnName="tenant_id" columnDataType="BIGINT"/>
+        <addForeignKeyConstraint baseTableName="schedule_combinations" baseColumnNames="tenant_id" constraintName="fk_schedule_combination_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+</databaseChangeLog>

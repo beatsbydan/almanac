@@ -14,7 +14,7 @@ import lombok.*;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class GenerationTracker extends BaseModel{
+public class GenerationTracker extends TenantOwnedModel{
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private GenerationStage generationStage = GenerationStage.UWC;

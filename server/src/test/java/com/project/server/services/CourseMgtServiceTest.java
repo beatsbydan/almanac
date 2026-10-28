@@ -1,12 +1,10 @@
 package com.project.server.services;
 
 import com.project.server.BaseIntegrationTest;
-import com.project.server.db.models.College;
-import com.project.server.db.models.Course;
-import com.project.server.db.models.Department;
-import com.project.server.db.services.college.CollegeService;
-import com.project.server.db.services.course.CourseService;
-import com.project.server.db.services.department.DepartmentService;
+import com.project.server.db.models.OrgUnit;
+import com.project.server.db.models.SchedulableUnit;
+import com.project.server.db.services.orgUnit.OrgUnitService;
+import com.project.server.db.services.schedulableUnit.SchedulableUnitService;
 import com.project.server.dtos.request.course.CourseParticipantRequest;
 import com.project.server.dtos.request.course.CourseRequest;
 import com.project.server.dtos.response.CourseResponse;
@@ -27,18 +25,16 @@ class CourseMgtServiceTest extends BaseIntegrationTest {
     @Autowired
     private CourseMgtService mgtService;
     @Autowired
-    private CourseService courseService;
+    private SchedulableUnitService courseService;
     @Autowired
-    private DepartmentService departmentService;
-    @Autowired
-    private CollegeService collegeService;
+    private OrgUnitService orgUnitService;
     private MessageResponse messageResponse;
 
     @BeforeEach
     @SneakyThrows
     void init(){
-        College college = collegeService.save(College.builder().name("collegeName").shortName("collegeShortName").build());
-        departmentService.save(Department.builder().name("department").shortName("DEPT").college(college).build());
+        OrgUnit college = orgUnitService.save(OrgUnit.builder().name("collegeName").shortName("collegeShortName").type("College").build());
+        orgUnitService.save(OrgUnit.builder().name("department").shortName("DEPT").type("Department").parent(college).build());
         messageResponse = mgtService.upsertCourse(toCourseRequest(), Type.CREATE, null);
     }
 
@@ -51,7 +47,7 @@ class CourseMgtServiceTest extends BaseIntegrationTest {
     @Test
     @SneakyThrows
     void should_update_course() {
-        Course course = courseService.findByTitle(toCourseRequest().getCourseTitle());
+        SchedulableUnit course = courseService.getByTitle(toCourseRequest().getCourseTitle());
         assertNotNull(mgtService.upsertCourse(toCourseRequest() , Type.UPDATE, course.getCode()));
     }
 

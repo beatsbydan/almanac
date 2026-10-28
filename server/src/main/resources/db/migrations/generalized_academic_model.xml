@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        OrgUnit and SchedulableUnit are introduced ALONGSIDE College/Department/Course/
+        CourseParticipant, not replacing them yet. Migrating Bowen's live data into the new shape,
+        rewiring every controller/DTO/test that currently targets the old tables, and retiring
+        them, is a deliberately separate, larger step — this migration only proves the new model
+        can represent both a university hierarchy and a K-12 one.
+    -->
+
+    <changeSet id="create_org_units_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="org_units"/></not>
+        </preConditions>
+        <createTable tableName="org_units">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_org_unit" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_org_unit" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="short_name" type="VARCHAR(100)"/>
+            <column name="type" type="VARCHAR(100)"/>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="org_units" baseColumnNames="tenant_id" constraintName="fk_org_unit_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="org_units" baseColumnNames="parent_id" constraintName="fk_org_unit_on_parent" referencedTableName="org_units" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="create_schedulable_units_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="schedulable_units"/></not>
+        </preConditions>
+        <createTable tableName="schedulable_units">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_schedulable_unit" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_schedulable_unit" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit" type="INT"/>
+            <column name="batched" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shared" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="general" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expected_class_size" type="INT"/>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="schedulable_units" baseColumnNames="tenant_id" constraintName="fk_schedulable_unit_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="create_schedulable_unit_codes_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="schedulable_unit_codes"/></not>
+        </preConditions>
+        <createTable tableName="schedulable_unit_codes">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_schedulable_unit_code" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_schedulable_unit_code" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_code" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedulable_unit_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_codes" baseColumnNames="tenant_id" constraintName="fk_schedulable_unit_code_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_codes" baseColumnNames="schedulable_unit_id" constraintName="fk_schedulable_unit_code_on_unit" referencedTableName="schedulable_units" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="create_schedulable_unit_participants_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="schedulable_unit_participants"/></not>
+        </preConditions>
+        <createTable tableName="schedulable_unit_participants">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_schedulable_unit_participant" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_schedulable_unit_participant" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="level_id" type="BIGINT"/>
+            <column name="schedulable_unit_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_participants" baseColumnNames="tenant_id" constraintName="fk_schedulable_unit_participant_on_tenant" referencedTableName="tenants" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_participants" baseColumnNames="schedulable_unit_id" constraintName="fk_schedulable_unit_participant_on_unit" referencedTableName="schedulable_units" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_participants" baseColumnNames="level_id" constraintName="fk_schedulable_unit_participant_on_level" referencedTableName="levels" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="create_schedulable_unit_participant_org_units_table" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="schedulable_unit_participant_org_units"/></not>
+        </preConditions>
+        <createTable tableName="schedulable_unit_participant_org_units">
+            <column name="participant_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="org_unit_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="schedulable_unit_participant_org_units" columnNames="participant_id, org_unit_id" constraintName="pk_schedulable_unit_participant_org_unit"/>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_participant_org_units" baseColumnNames="participant_id" constraintName="fk_participant_org_unit_on_participant" referencedTableName="schedulable_unit_participants" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="schedulable_unit_participant_org_units" baseColumnNames="org_unit_id" constraintName="fk_participant_org_unit_on_org_unit" referencedTableName="org_units" referencedColumnNames="id"/>
+    </changeSet>
+
+</databaseChangeLog>

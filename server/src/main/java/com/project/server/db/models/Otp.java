@@ -11,7 +11,7 @@ import lombok.*;
 @Table(name = "otps")
 @NoArgsConstructor
 @AllArgsConstructor
-public class Otp extends BaseModel{
+public class Otp extends TenantOwnedModel{
     private String otp;
 
     @Builder.Default

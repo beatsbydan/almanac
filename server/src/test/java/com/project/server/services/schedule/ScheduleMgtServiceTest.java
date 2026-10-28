@@ -2,11 +2,11 @@ package com.project.server.services.schedule;
 
 import com.project.server.BaseIntegrationTest;
 import com.project.server.db.models.ClassRoom;
-import com.project.server.db.models.Course;
+import com.project.server.db.models.SchedulableUnit;
 import com.project.server.db.models.Schedule;
 import com.project.server.db.models.TimeTable;
 import com.project.server.db.services.classroom.ClassRoomService;
-import com.project.server.db.services.course.CourseService;
+import com.project.server.db.services.schedulableUnit.SchedulableUnitService;
 import com.project.server.db.services.schedule.ScheduleService;
 import com.project.server.db.services.timetable.TimeTableService;
 import com.project.server.dtos.request.*;
@@ -53,13 +53,13 @@ class ScheduleMgtServiceTest extends BaseIntegrationTest {
     @Autowired
     private ScheduleService scheduleService;
     @Autowired
-    private CourseService courseService;
+    private SchedulableUnitService courseService;
     @Autowired
     private TimeTableService timeTableService;
 
     List<String> classroomCodes = new ArrayList<>();
     private MessageResponse messageResponse;
-    private Course course;
+    private SchedulableUnit course;
 
 
     @BeforeEach
@@ -76,7 +76,7 @@ class ScheduleMgtServiceTest extends BaseIntegrationTest {
         classroomMgtService.createClassroom(toClassRoomRequest());
         classroomCodes = classRoomService.findAllByCollege("college").stream().map(ClassRoom::getCode).toList();
         courseMgtService.upsertCourse(toCourseRequest(), Type.CREATE, null);
-        course = courseService.findByTitle(toCourseRequest().getCourseTitle());
+        course = courseService.getByTitle(toCourseRequest().getCourseTitle());
         messageResponse = scheduleMgtService.createSchedule(toScheduleRequest(course.getCode(), classroomCodes));
     }
 

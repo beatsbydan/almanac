@@ -1,8 +1,8 @@
 package com.project.server.services;
 
 import com.project.server.BaseIntegrationTest;
-import com.project.server.db.models.Department;
-import com.project.server.db.services.department.DepartmentService;
+import com.project.server.db.models.OrgUnit;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.dtos.request.CollegeRequest;
 import com.project.server.dtos.request.DepartmentRequest;
 import com.project.server.dtos.response.DepartmentResponse;
@@ -24,7 +24,7 @@ class DepartmentMgtServiceTest extends BaseIntegrationTest {
     private CollegeMgtService collegeMgtService;
 
     @Autowired
-    private DepartmentService departmentService;
+    private OrgUnitService departmentService;
 
     private MessageResponse messageResponse;
 
@@ -44,7 +44,7 @@ class DepartmentMgtServiceTest extends BaseIntegrationTest {
     @Test
     @SneakyThrows
     void should_update_department() {
-        Department department = departmentService.getByName(toDepartmentRequest().getDepartmentName());
+        OrgUnit department = departmentService.getChildByName(toDepartmentRequest().getDepartmentName());
         messageResponse = mgtService.updateDepartment(department.getCode() , toDepartmentRequest());
 
         assertNotNull(messageResponse);

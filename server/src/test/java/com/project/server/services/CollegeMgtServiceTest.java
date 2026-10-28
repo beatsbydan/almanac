@@ -1,8 +1,8 @@
 package com.project.server.services;
 
 import com.project.server.BaseIntegrationTest;
-import com.project.server.db.models.College;
-import com.project.server.db.services.college.CollegeService;
+import com.project.server.db.models.OrgUnit;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.dtos.request.CollegeRequest;
 import com.project.server.dtos.response.CollegeResponse;
 import com.project.server.dtos.response.MessageResponse;
@@ -20,7 +20,7 @@ class CollegeMgtServiceTest extends BaseIntegrationTest {
     private CollegeMgtService mgtService;
 
     @Autowired
-    private CollegeService collegeService;
+    private OrgUnitService collegeService;
 
     private MessageResponse messageResponse;
 
@@ -39,7 +39,7 @@ class CollegeMgtServiceTest extends BaseIntegrationTest {
     @Test
     @SneakyThrows
     void should_update_college() {
-        College college = collegeService.getByName(toCollegeRequest().getCollegeName());
+        OrgUnit college = collegeService.getRootByName(toCollegeRequest().getCollegeName());
         messageResponse = mgtService.updateCollege(college.getCode() , toCollegeRequest());
 
         assertNotNull(messageResponse);

@@ -1,12 +1,13 @@
 package com.project.server.services.schedule;
 
+import com.project.server.configs.tenant.TenantContext;
 import com.project.server.db.models.*;
 import com.project.server.db.services.appUser.AppUserService;
 import com.project.server.db.services.classroom.ClassRoomService;
-import com.project.server.db.services.course.CourseService;
-import com.project.server.db.services.courseParticipant.CourseParticipantService;
 import com.project.server.db.services.schedule.ScheduleService;
 import com.project.server.db.services.scheduleCombination.ScheduleCombinationService;
+import com.project.server.db.services.schedulableUnit.SchedulableUnitService;
+import com.project.server.db.services.tenantCalendar.TenantCalendarService;
 import com.project.server.db.services.timetable.TimeTableService;
 import com.project.server.dtos.request.ScheduleRequest;
 import com.project.server.dtos.request.course.CourseParticipantResponse;
@@ -34,11 +35,11 @@ public class ScheduleMgtService {
     private final ScheduleService scheduleService;
     private final ScheduleCombinationService scheduleCombinationService;
     private final TimeTableService timeTableService;
-    private final CourseService courseService;
+    private final SchedulableUnitService schedulableUnitService;
     private final ClassRoomService classRoomService;
     private final RedissonLockService redissonLockService;
     private final SuggestionService suggestionService;
-    private final CourseParticipantService courseParticipantService;
+    private final TenantCalendarService tenantCalendarService;
 
     @Transactional(rollbackFor = Exception.class)
     public MessageResponse createSchedule(ScheduleRequest request) throws NotFoundException, DuplicateEntryException, ScheduleUpsertException {
@@ -92,7 +93,7 @@ public class ScheduleMgtService {
         if(timeTable.getCreationStatus() != Status.ENABLED) throw new ScheduleUpsertException("Schedule creation has not been enabled for this time table.");
 
         AppUser staff = userService.getByUserIdOrEmail(request.getUserId(), null);
-        Course course = courseService.findByCode(request.getCourseCode());
+        SchedulableUnit course = schedulableUnitService.getByCodeWithParticipants(request.getCourseCode());
 
         List<ClassRoom> classRooms = new ArrayList<>();
         for(String classRoomCode : request.getClassroomCodes()){
@@ -106,71 +107,77 @@ public class ScheduleMgtService {
         int endTime = (Integer) timeParams.get("endTime");
         String timePeriod = (String) timeParams.get("timePeriod");
 
-        List<String> locks = acquireLocks(classNames, request.getRecurringDay(), timePeriod, timeTable.getCode());
+        List<SchedulableUnitParticipant> participants = course.getParticipants();
 
-        if(locks.size() != classNames.size()) throw new ScheduleUpsertException("This schedule combination is currently unavailable, Try again later.");
-        if(Objects.equals(request.getRecurringDay(), "Wednesdays") && (startTime >= 10 && startTime <=12)) throw new ScheduleUpsertException("Classes aren't supposed to hold at this time on Wednesdays.");
-        if(course.getExpectedClassSize() > totalClassSize) throw new ScheduleUpsertException("Classroom(s) don't match the expected class size, consider changing venue(s).");
+        List<String> classroomLocks = acquireLocks(classNames, request.getRecurringDay(), timePeriod, timeTable.getCode());
+        Set<String> participantLockKeys = buildParticipantLockKeys(participants, request.getRecurringDay(), timePeriod, timeTable.getCode());
+        List<String> participantLocks = acquireParticipantLocks(participantLockKeys);
 
-        for(int i = 0; i < locks.size(); i++){
-            if(scheduleCombinationService.isExistingCombination(
-                    request.getRecurringDay(),
-                    startTime,
-                    endTime,
-                    classNames.get(i),
-                    timeTable.getCode()
-            )) throw new DuplicateEntryException("This schedule combination has been taken by another lecturer. Select another.");
-        }
+        List<String> allAcquiredLocks = new ArrayList<>(classroomLocks);
+        allAcquiredLocks.addAll(participantLocks);
 
-        List<CourseParticipant> participants = course.getCourseParticipants();
+        try {
+            if(classroomLocks.size() != classNames.size()) throw new ScheduleUpsertException("This schedule combination is currently unavailable, Try again later.");
+            if(participantLocks.size() != participantLockKeys.size()) throw new ScheduleUpsertException("This schedule combination is currently unavailable, Try again later.");
+            if(tenantCalendarService.hasBlackoutConflict(TenantContext.get(), request.getRecurringDay(), startTime, endTime)) throw new ScheduleUpsertException("Classes aren't supposed to hold at this time on " + request.getRecurringDay() + ".");
+            if(course.getExpectedClassSize() > totalClassSize) throw new ScheduleUpsertException("Classroom(s) don't match the expected class size, consider changing venue(s).");
 
-        if(scheduleService.hasScheduleAtTime(startTime, endTime, participants, request.getRecurringDay())){
-            log.info("Some participants have schedules at this time");
-            boolean isShared = participants.size() > 1 || participants.getFirst().getDepartments().size() > 1;
-            String message = isShared ? "One or more department(s) taking your course have" : String.format("%s has", participants.getFirst().getDepartments().getFirst().getName());
-
-            throw new ScheduleUpsertException(message + " a class at this time.");
-        }
-
-        Schedule schedule;
-        List<ScheduleCombination> scheduleCombinations = new ArrayList<>();
-
-        if(type == Type.CREATE){
-            if(scheduleCombinationService.hasScheduleForCourse(request.getCourseCode())) throw new DuplicateEntryException("Schedule for this course already exists.");
-            schedule = scheduleService.save(toCreateScheduleDbModel(staff, timeTable, course, classRooms, request.getRecurringDay(), startTime, endTime, timePeriod));
-            for(int i = 0; i < locks.size(); i++){
-                scheduleCombinations.add(toCreateScheduleCombinationDbModel(locks.get(i), request.getRecurringDay(), startTime, endTime, classNames.get(i), schedule));
+            for(String className : classNames){
+                if(scheduleCombinationService.isExistingCombination(
+                        request.getRecurringDay(),
+                        startTime,
+                        endTime,
+                        className,
+                        timeTable.getCode()
+                )) throw new DuplicateEntryException("This schedule combination has been taken by another lecturer. Select another.");
             }
-        }
-        else {
-            schedule = scheduleService.getByCode(scheduleCode);
 
-            schedule.setAppUser(staff);
-            schedule.setCourse(course);
-            schedule.setClassRooms(classRooms);
-            schedule.setTimeTable(timeTable);
-            schedule.setStartTime(startTime);
-            schedule.setEndTime(endTime);
-            schedule.setTimePeriod(timePeriod);
-            schedule.setDay(request.getRecurringDay());
+            if(scheduleService.hasScheduleAtTime(startTime, endTime, participants, request.getRecurringDay())){
+                log.info("Some participants have schedules at this time");
+                boolean isShared = participants.size() > 1 || participants.getFirst().getOrgUnits().size() > 1;
+                String message = isShared ? "One or more department(s) taking your course have" : String.format("%s has", participants.getFirst().getOrgUnits().getFirst().getName());
 
-            schedule = scheduleService.save(schedule);
-
-            scheduleCombinationService.deleteAllBySchedule(scheduleCode);
-
-            for(int i = 0; i < locks.size(); i++){
-                scheduleCombinations.add(toCreateScheduleCombinationDbModel(locks.get(i), request.getRecurringDay(), startTime, endTime,classNames.get(i), schedule));
+                throw new ScheduleUpsertException(message + " a class at this time.");
             }
+
+            Schedule schedule;
+            List<ScheduleCombination> scheduleCombinations = new ArrayList<>();
+
+            if(type == Type.CREATE){
+                if(scheduleCombinationService.hasScheduleForCourse(request.getCourseCode())) throw new DuplicateEntryException("Schedule for this course already exists.");
+                schedule = scheduleService.save(toCreateScheduleDbModel(staff, timeTable, course, classRooms, request.getRecurringDay(), startTime, endTime, timePeriod));
+                for(int i = 0; i < classroomLocks.size(); i++){
+                    scheduleCombinations.add(toCreateScheduleCombinationDbModel(classroomLocks.get(i), request.getRecurringDay(), startTime, endTime, classNames.get(i), schedule));
+                }
+            }
+            else {
+                schedule = scheduleService.getByCode(scheduleCode);
+
+                schedule.setAppUser(staff);
+                schedule.setSchedulableUnit(course);
+                schedule.setClassRooms(classRooms);
+                schedule.setTimeTable(timeTable);
+                schedule.setStartTime(startTime);
+                schedule.setEndTime(endTime);
+                schedule.setTimePeriod(timePeriod);
+                schedule.setDay(request.getRecurringDay());
+
+                schedule = scheduleService.save(schedule);
+
+                scheduleCombinationService.deleteAllBySchedule(scheduleCode);
+
+                for(int i = 0; i < classroomLocks.size(); i++){
+                    scheduleCombinations.add(toCreateScheduleCombinationDbModel(classroomLocks.get(i), request.getRecurringDay(), startTime, endTime, classNames.get(i), schedule));
+                }
+            }
+
+            scheduleCombinationService.save(scheduleCombinations);
+
+            String actionPerformed = type == Type.CREATE ? "created" : "updated";
+            return new MessageResponse(String.format("Schedule was successfully %s", actionPerformed));
+        } finally {
+            releaseLocks(allAcquiredLocks);
         }
-
-        scheduleCombinationService.save(scheduleCombinations);
-
-        for (String lock : locks) {
-            redissonLockService.unlock(lock);
-        }
-
-        String actionPerformed = type == Type.CREATE ? "created" : "updated";
-        return new MessageResponse(String.format("Schedule was successfully %s", actionPerformed));
     }
 
     private List<String> acquireLocks(List<String> classrooms, String day, String timePeriod, String timeTableCode){
@@ -184,7 +191,46 @@ public class ScheduleMgtService {
         return acquiredLocks;
     }
 
-    private Map<String, Object> formatTimePeriod(ScheduleRequest request) throws ScheduleUpsertException{
+    /**
+     * One lock key per (level, department) pair touched by the course's participants, so two
+     * concurrent requests that target different classrooms but the same department/level at the
+     * same day and time period are serialized against each other too — closing the gap where only
+     * the classroom lock was enforced and {@code hasScheduleAtTime} could be read-then-written by
+     * both requests before either committed.
+     */
+    private Set<String> buildParticipantLockKeys(List<SchedulableUnitParticipant> participants, String day, String timePeriod, String timeTableCode){
+        Set<String> keys = new LinkedHashSet<>();
+
+        for(SchedulableUnitParticipant participant : participants){
+            for(OrgUnit orgUnit : participant.getOrgUnits()){
+                keys.add(String.format("%s:%s:%s:level-%s:dept-%s", timeTableCode, day, timePeriod, participant.getLevel().getLevel(), orgUnit.getShortName()));
+            }
+        }
+
+        return keys;
+    }
+
+    private List<String> acquireParticipantLocks(Set<String> lockKeys){
+        List<String> acquiredLocks = new ArrayList<>();
+
+        for(String key : lockKeys) {
+            if(redissonLockService.tryLock(key, 5, 15)) acquiredLocks.add(key);
+        }
+
+        return acquiredLocks;
+    }
+
+    private void releaseLocks(List<String> locks){
+        for (String lock : locks) {
+            try {
+                redissonLockService.unlock(lock);
+            } catch (Exception e) {
+                log.warn("Failed to release lock {}: {}", lock, e.getMessage());
+            }
+        }
+    }
+
+    private Map<String, Object> formatTimePeriod(ScheduleRequest request) throws ScheduleUpsertException, NotFoundException{
         Map<String, Object> timeParams = new HashMap<>();
 
         String splitRegex = ":00";
@@ -195,7 +241,8 @@ public class ScheduleMgtService {
         int startTime = Integer.parseInt(startTimeString);
         int endTime = startTime + Integer.parseInt(Arrays.stream(request.getTimeDuration().split(" ")).toList().getFirst());
 
-        if(endTime > 18) throw new ScheduleUpsertException("Classes can't extend beyond 18:00PM");
+        int maxEndHour = tenantCalendarService.getMaxEndHour(TenantContext.get());
+        if(endTime > maxEndHour) throw new ScheduleUpsertException(String.format("Classes can't extend beyond %d:00", maxEndHour));
 
         String endTimeString = String.valueOf(endTime);
         String endTimeStringSuffix = endTime >= 12 ? "pm" : startTimeStringSuffix;
@@ -209,11 +256,11 @@ public class ScheduleMgtService {
         return timeParams;
     }
 
-    private Schedule toCreateScheduleDbModel(AppUser staff, TimeTable timetable, Course course, List<ClassRoom> classrooms, String day, int startTime, int endTime, String timePeriod){
+    private Schedule toCreateScheduleDbModel(AppUser staff, TimeTable timetable, SchedulableUnit course, List<ClassRoom> classrooms, String day, int startTime, int endTime, String timePeriod){
         return Schedule.builder()
                 .appUser(staff)
                 .timeTable(timetable)
-                .course(course)
+                .schedulableUnit(course)
                 .classRooms(classrooms)
                 .startTime(startTime)
                 .endTime(endTime)
@@ -236,7 +283,7 @@ public class ScheduleMgtService {
     private ScheduleResponse toScheduleResponse(Schedule schedule){
         return ScheduleResponse.builder()
                 .classrooms(toClassroomResponse(schedule.getClassRooms()))
-                .course(toCourseResponse(schedule.getCourse()))
+                .course(toCourseResponse(schedule.getSchedulableUnit()))
                 .day(schedule.getDay())
                 .code(schedule.getCode())
                 .time(schedule.getTimePeriod())
@@ -244,27 +291,27 @@ public class ScheduleMgtService {
     }
 
 
-    private CourseResponse toCourseResponse(Course course) {
+    private CourseResponse toCourseResponse(SchedulableUnit course) {
         List<String> courseCodesResponse = new ArrayList<>();
 
-        List<CourseParticipant> courseParticipants = courseParticipantService.getByCourse(course.getCode());
+        List<SchedulableUnitParticipant> courseParticipants = schedulableUnitService.getParticipants(course.getCode());
         List<CourseParticipantResponse> courseParticipantResponses = new ArrayList<>();
 
-        for(CourseParticipant participant : courseParticipants) {
+        for(SchedulableUnitParticipant participant : courseParticipants) {
             courseParticipantResponses.add(CourseParticipantResponse.builder()
                     .level(participant.getLevel().getLevel())
-                    .departments(participant.getDepartments().stream().map(Department::getName).toList())
+                    .departments(participant.getOrgUnits().stream().map(OrgUnit::getName).toList())
                     .build());
         }
 
-        for (CourseCode code : course.getCourseCodes()) {
-            courseCodesResponse.add(code.getCourseCode());
+        for (SchedulableUnitCode code : course.getCodes()) {
+            courseCodesResponse.add(code.getUnitCode());
         }
 
         return CourseResponse.builder()
                  .code(course.getCode())
-                 .courseTitle(course.getCourseTitle())
-                 .courseUnit(course.getCourseUnit().toString())
+                 .courseTitle(course.getTitle())
+                 .courseUnit(course.getUnit().toString())
                  .batched(course.isBatched())
                  .shared(course.isShared())
                  .general(course.isGeneral())
@@ -278,7 +325,7 @@ public class ScheduleMgtService {
         List<ClassroomResponse> responses = new ArrayList<>();
 
         for(ClassRoom room : classRooms){
-            String college = room.getCollege() != null ? room.getCollege().getShortName() : null;
+            String college = room.getOrgUnit() != null ? room.getOrgUnit().getShortName() : null;
             responses.add(ClassroomResponse.builder()
                     .className(room.getName())
                     .code(room.getCode())

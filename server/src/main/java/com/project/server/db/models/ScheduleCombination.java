@@ -10,7 +10,7 @@ import lombok.*;
 @Table(name = "schedule_combinations")
 @NoArgsConstructor
 @AllArgsConstructor
-public class ScheduleCombination extends BaseModel {
+public class ScheduleCombination extends TenantOwnedModel {
     private String combination;
 
     private String day;

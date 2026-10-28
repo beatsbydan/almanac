@@ -1,9 +1,9 @@
 package com.project.server.services;
 
 import com.project.server.db.models.ClassRoom;
-import com.project.server.db.models.College;
+import com.project.server.db.models.OrgUnit;
 import com.project.server.db.services.classroom.ClassRoomService;
-import com.project.server.db.services.college.CollegeService;
+import com.project.server.db.services.orgUnit.OrgUnitService;
 import com.project.server.dtos.request.ClassroomRequest;
 import com.project.server.dtos.response.ClassroomResponse;
 import com.project.server.dtos.response.MessageResponse;
@@ -21,7 +21,7 @@ import java.util.List;
 @Slf4j
 public class ClassroomMgtService {
     private final ClassRoomService classRoomService;
-    private final CollegeService collegeService;
+    private final OrgUnitService orgUnitService;
 
     public MessageResponse createClassroom (ClassroomRequest request) throws DuplicateEntryException, NotFoundException {
         if(classRoomService.isExistingClassroom(request)) throw new DuplicateEntryException("Classroom already exists.");
@@ -45,21 +45,21 @@ public class ClassroomMgtService {
     }
 
     private ClassRoom toCreateDbModel(ClassroomRequest request) throws NotFoundException {
-        College college = null;
-        if(request.getCollege() != null) college = collegeService.getByName(request.getCollege());
+        OrgUnit college = null;
+        if(request.getCollege() != null) college = orgUnitService.getRootByName(request.getCollege());
         return ClassRoom.builder()
                 .name(request.getClassName())
                 .capacity(request.getClassSize())
-                .college(college)
+                .orgUnit(college)
                 .build();
     }
     private ClassRoom toUpdateDbModel(ClassRoom classRoom, ClassroomRequest request) throws NotFoundException {
-        College college = null;
-        if(request.getCollege() != null) college = collegeService.getByName(request.getCollege());
+        OrgUnit college = null;
+        if(request.getCollege() != null) college = orgUnitService.getRootByName(request.getCollege());
 
         classRoom.setName(request.getClassName());
         classRoom.setCapacity(request.getClassSize());
-        classRoom.setCollege(college);
+        classRoom.setOrgUnit(college);
 
         return classRoom;
     }
@@ -67,7 +67,7 @@ public class ClassroomMgtService {
         List<ClassroomResponse> responses = new ArrayList<>();
 
         for(ClassRoom room : classRooms){
-            String college = room.getCollege() != null ? room.getCollege().getShortName() : "NO COLLEGE";
+            String college = room.getOrgUnit() != null ? room.getOrgUnit().getShortName() : "NO COLLEGE";
             responses.add(ClassroomResponse.builder()
                             .className(room.getName())
                             .code(room.getCode())

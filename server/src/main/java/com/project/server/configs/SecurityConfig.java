@@ -1,6 +1,7 @@
 package com.project.server.configs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.server.configs.tenant.TenantResolutionFilter;
 import com.project.server.dtos.response.MessageResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +28,7 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final AuthFilter authFilter;
+    private final TenantResolutionFilter tenantResolutionFilter;
     private final AuthenticationProvider authenticationProvider;
     private final LogoutHandler logoutHandler;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -55,6 +57,7 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
+                .addFilterBefore(tenantResolutionFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
                 .logout(logout -> logout
                         .logoutUrl("/api/v1/auth/logout")

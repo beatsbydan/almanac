@@ -18,7 +18,7 @@ import java.util.List;
 @Table(name = "users")
 @NoArgsConstructor
 @AllArgsConstructor
-public class AppUser extends BaseModel implements UserDetails {
+public class AppUser extends TenantOwnedModel implements UserDetails {
     private String userId;
 
     private String userEmail;
@@ -32,8 +32,8 @@ public class AppUser extends BaseModel implements UserDetails {
     private String timeTableFileName;
 
     @OneToOne
-    @JoinColumn(name = "department_id", referencedColumnName = "id")
-    private Department department;
+    @JoinColumn(name = "org_unit_id", referencedColumnName = "id")
+    private OrgUnit orgUnit;
 
     @OneToOne
     @JoinColumn(name = "level_id", referencedColumnName = "id")
