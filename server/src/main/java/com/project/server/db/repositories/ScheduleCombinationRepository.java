@@ -51,5 +51,5 @@ public interface ScheduleCombinationRepository extends JpaRepository<ScheduleCom
     Page<ScheduleCombination> getSchedules(@Param("code") String timetableCode, Pageable pageable);
 
     @Query("SELECT s FROM ScheduleCombination s WHERE s.schedule.schedulableUnit.code = :code")
-    Optional<ScheduleCombination> hasScheduleForCourse( @Param("code") String courseCode);
+    List<ScheduleCombination> hasScheduleForCourse( @Param("code") String courseCode);
 }

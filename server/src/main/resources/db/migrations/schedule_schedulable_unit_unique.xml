@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A course can only ever have one schedule (ScheduleMgtService rejects a second CREATE for
+        the same course), but nothing at the DB level enforced that — only an application-level
+        read-then-write check, which a race between two concurrent requests for the same course at
+        different day/time/classroom combinations could pass on both sides before either committed
+        (neither the classroom lock nor the participant lock is keyed by course). Defense in depth
+        alongside the new course-level lock in ScheduleMgtService: this constraint is what would
+        actually stop a duplicate from landing if the lock were ever bypassed, forgotten in a future
+        change, or raced by a process outside the lock's reach (a direct DB write, a different
+        service instance misconfigured against a different Redis).
+    -->
+    <changeSet id="add_unique_constraint_schedule_schedulable_unit" author="daniel.onyeachonam" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="schedules" indexName="uk_schedule_schedulable_unit"/>
+            </not>
+        </preConditions>
+        <addUniqueConstraint tableName="schedules" columnNames="schedulable_unit_id" constraintName="uk_schedule_schedulable_unit"/>
+    </changeSet>
+
+</databaseChangeLog>

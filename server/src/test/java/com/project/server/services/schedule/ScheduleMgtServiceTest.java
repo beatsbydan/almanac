@@ -125,7 +125,6 @@ class ScheduleMgtServiceTest extends BaseIntegrationTest {
         assertNotNull(messageResponse);
     }
 
-
     private ScheduleRequest toUpdateScheduleRequest(String code, List<String> classroomCodes){
         return ScheduleRequest.builder()
                 .userId("staffId")

@@ -53,6 +53,6 @@ public class ScheduleCombinationServiceImpl implements ScheduleCombinationServic
 
     @Override
     public boolean hasScheduleForCourse(String courseCode) {
-        return repository.hasScheduleForCourse(courseCode).isPresent();
+        return !repository.hasScheduleForCourse(courseCode).isEmpty();
     }
 }

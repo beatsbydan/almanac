@@ -112,13 +112,16 @@ public class ScheduleMgtService {
         List<String> classroomLocks = acquireLocks(classNames, request.getRecurringDay(), timePeriod, timeTable.getCode());
         Set<String> participantLockKeys = buildParticipantLockKeys(participants, request.getRecurringDay(), timePeriod, timeTable.getCode());
         List<String> participantLocks = acquireParticipantLocks(participantLockKeys);
+        List<String> courseLock = acquireCourseLock(request.getCourseCode(), timeTable.getCode());
 
         List<String> allAcquiredLocks = new ArrayList<>(classroomLocks);
         allAcquiredLocks.addAll(participantLocks);
+        allAcquiredLocks.addAll(courseLock);
 
         try {
             if(classroomLocks.size() != classNames.size()) throw new ScheduleUpsertException("This schedule combination is currently unavailable, Try again later.");
             if(participantLocks.size() != participantLockKeys.size()) throw new ScheduleUpsertException("This schedule combination is currently unavailable, Try again later.");
+            if(courseLock.isEmpty()) throw new ScheduleUpsertException("This course is currently being scheduled by another request, Try again later.");
             if(tenantCalendarService.hasBlackoutConflict(TenantContext.get(), request.getRecurringDay(), startTime, endTime)) throw new ScheduleUpsertException("Classes aren't supposed to hold at this time on " + request.getRecurringDay() + ".");
             if(course.getExpectedClassSize() > totalClassSize) throw new ScheduleUpsertException("Classroom(s) don't match the expected class size, consider changing venue(s).");
 
@@ -208,6 +211,20 @@ public class ScheduleMgtService {
         }
 
         return keys;
+    }
+
+    /**
+     * The classroom and participant/department locks above are both keyed by (day, timePeriod,
+     * ...) — two concurrent requests for the SAME course at DIFFERENT days/times acquire entirely
+     * disjoint locks, so neither blocks the other, and both can read hasScheduleForCourse as
+     * false before either commits. A course can only ever have one schedule, so that check needs
+     * its own lock independent of day/time. Returns a single-element list (or empty, matching the
+     * other acquire* methods' shape) so it composes with the existing allAcquiredLocks/finally
+     * release pattern.
+     */
+    private List<String> acquireCourseLock(String courseCode, String timeTableCode){
+        String lock = String.format("%s:course:%s", timeTableCode, courseCode);
+        return redissonLockService.tryLock(lock, 5, 15) ? List.of(lock) : List.of();
     }
 
     private List<String> acquireParticipantLocks(Set<String> lockKeys){
